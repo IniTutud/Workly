@@ -5,8 +5,41 @@ import {
   CalendarDays,
   Clock,
 } from "lucide-react";
+import { supabase } from "../utils/supabase";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 function Dashboard() {
+  useEffect(() => {
+
+    console.log("Dashboard berhasil dijalankan");
+
+    async function testConnection() {
+      console.log("Mulai koneksi Supabase...");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*");
+
+      console.log("DATA:", data);
+      console.log("ERROR:", error);
+    }
+
+    testConnection();
+
+      async function testProfiles() {
+      const { data, error, count } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact" });
+
+      console.log("PROFILES:", data);
+      console.log("COUNT:", count);
+      console.log("ERROR:", error);
+    }
+
+    testProfiles();
+  }, []);
+
   return (
     <div className="space-y-6">
 
@@ -17,7 +50,7 @@ function Dashboard() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            {new Date().toLocaleDateString("en-GB", {
+            {new Date().toLocaleDateString("id-GB", {
               weekday: "long",
               day: "2-digit",
               month: "long",
@@ -74,8 +107,8 @@ function Dashboard() {
 
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl bg-white p-6 shadow-sm flex justify-between">
-          <div className="flex items-center justify-between gap-3">
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
               <Users className="h-5 w-5" />
             </div>
@@ -90,14 +123,14 @@ function Dashboard() {
               </p>
 
               <p className="mt-2 text-xs text-blue-600">
-                Employees registered
+                Karyawan Terdaftar
               </p>
             </div>            
           </div>
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-600">
               <CircleCheck className="h-5 w-5" />
             </div>
@@ -112,7 +145,7 @@ function Dashboard() {
               </p>
 
               <p className="mt-2 text-xs text-green-600">
-                Employees present today
+                Karyawan hadir hari ini
               </p>
             </div>
 
@@ -120,7 +153,7 @@ function Dashboard() {
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
               <CalendarDays className="h-5 w-5" />
             </div>
@@ -135,7 +168,7 @@ function Dashboard() {
               </p>
 
               <p className="mt-2 text-xs text-yellow-600">
-                Waiting for approval
+                Menunggu persetujuan
               </p>
             </div>
 
@@ -143,7 +176,7 @@ function Dashboard() {
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-500">
               <Clock className="h-5 w-5" />
             </div>
@@ -158,7 +191,7 @@ function Dashboard() {
               </p>
 
               <p className="mt-2 text-xs text-red-500">
-                Late attendance today
+                Karyawan terlambat hari ini
               </p>
             </div>
 
@@ -250,7 +283,7 @@ function Dashboard() {
                 Pending Leave
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-xs text-slate-500">
                 Requests waiting for approval
               </p>
             </div>
@@ -266,7 +299,7 @@ function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    Budi Santoso
+                      Max Verstappen
                   </p>
 
                   <p className="mt-1 text-xs text-slate-500">
@@ -274,9 +307,12 @@ function Dashboard() {
                   </p>
                 </div>
 
-                <button className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                <Link
+                  to="/admin/leaves"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                >
                   Review
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -284,7 +320,7 @@ function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    Siti Aminah
+                    Lewis Hamilton
                   </p>
 
                   <p className="mt-1 text-xs text-slate-500">
@@ -292,9 +328,12 @@ function Dashboard() {
                   </p>
                 </div>
 
-                <button className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                <Link
+                  to="/admin/leaves"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                >
                   Review
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -302,7 +341,7 @@ function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    Andi Pratama
+                    Charles Leclerc
                   </p>
 
                   <p className="mt-1 text-xs text-slate-500">
@@ -310,16 +349,22 @@ function Dashboard() {
                   </p>
                 </div>
 
-                <button className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                <Link
+                  to="/admin/leaves"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                >
                   Review
-                </button>
+                </Link>
               </div>
             </div>
           </div>
 
-          <button className="mt-5 w-full rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <Link
+            to="/admin/leaves"
+            className="mt-5 block w-full rounded-lg border border-slate-200 py-2 text-center text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
             Lihat Semua
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -335,9 +380,12 @@ function Dashboard() {
             </p>
           </div>
 
-          <button className="text-sm font-medium text-blue-600 hover:text-blue-800">
+          <Link
+            to="/admin/attendance"
+            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+          >
             Lihat Semua →
-          </button>
+          </Link>
         </div>
 
         <div className="mt-6 overflow-x-auto">
@@ -356,7 +404,7 @@ function Dashboard() {
 
               <tr>
                 <td className="py-4 font-medium text-slate-900">
-                  Budi Santoso
+                  Michael Schumacher
                 </td>
 
                 <td className="py-4 text-slate-500">
@@ -380,7 +428,7 @@ function Dashboard() {
 
               <tr>
                 <td className="py-4 font-medium text-slate-900">
-                  Siti Aminah
+                  Oscar Piastri
                 </td>
 
                 <td className="py-4 text-slate-500">
@@ -404,7 +452,7 @@ function Dashboard() {
 
               <tr>
                 <td className="py-4 font-medium text-slate-900">
-                  Fadhil
+                  Max Verstappen
                 </td>
 
                 <td className="py-4 text-slate-500">
@@ -428,7 +476,7 @@ function Dashboard() {
 
               <tr>
                 <td className="py-4 font-medium text-slate-900">
-                  Andi Pratama
+                  Lewis Hamilton
                 </td>
 
                 <td className="py-4 text-slate-500">
