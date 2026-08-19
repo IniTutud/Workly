@@ -16,9 +16,12 @@ export default function Login() {
     setError(null);
 
     try {
-      // 1. Sign in with Supabase Auth
+      // 1. Bersihkan session lama sebelum login mencegah bug sesi nyangkut
+      await supabase.auth.signOut();
+
+      // 2. Sign in menggunakan .trim() agar kebal spasi
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
@@ -31,7 +34,7 @@ export default function Login() {
         throw new Error('Gagal mendapatkan data user.');
       }
 
-      // 2. Cek Role di tabel profiles
+      // 3. Cek Role di tabel profiles
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -39,25 +42,23 @@ export default function Login() {
         .single();
 
       if (profileError || !profileData) {
+        await supabase.auth.signOut();
         throw new Error('Gagal mengambil role user.');
       }
 
       const role = profileData.role;
 
-      // 3. Redirect berdasarkan Role
+      // 4. Redirect berdasarkan Role dengan opsi replace: true (mencegah bug tombol Back)
       if (role === 'admin') {
-        navigate('/');
+        navigate('/', { replace: true });
       } else if (role === 'karyawan') {
-        navigate('/karyawan/dashboard');
+        navigate('/karyawan/dashboard', { replace: true });
       } else {
+        await supabase.auth.signOut();
         throw new Error('Role tidak valid.');
       }
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat login.');
-      // Jika terjadi error (misalnya role tidak valid), kita bisa sign out user tersebut
-      if (err.message === 'Role tidak valid.' || err.message === 'Gagal mengambil role user.') {
-         await supabase.auth.signOut();
-      }
     } finally {
       setLoading(false);
     }

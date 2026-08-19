@@ -1,0 +1,307 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../utils/supabase';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Camera, Clock, LogOut, CheckCircle } from 'lucide-react';
+
+const Presensi: React.FC = () => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusAbsen, setStatusAbsen] = useState<'belum' | 'sudah_masuk' | 'selesai'>('belum');
+  const [attendanceId, setAttendanceId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Real-time clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Check attendance status today
+  useEffect(() => {
+    const fetchAttendanceStatus = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const { data, error } = await supabase
+          .from('attendances')
+          .select('id, clock_out')
+          .eq('user_id', user.id)
+          .gte('clock_in', startOfDay.toISOString())
+          .order('clock_in', { ascending: false })
+          .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const attendance = data[0];
+          if (!attendance.clock_out) {
+            setStatusAbsen('sudah_masuk');
+            setAttendanceId(attendance.id);
+          } else {
+            setStatusAbsen('selesai');
+          }
+        } else {
+          setStatusAbsen('belum');
+        }
+      } catch (error) {
+        console.error('Error fetching attendance status:', error);
+      }
+    };
+
+    fetchAttendanceStatus();
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadPhoto = async (file: File): Promise<string | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `presensi/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('attendance_photos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('attendance_photos')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Gagal mengunggah foto. Pastikan bucket "presensi-photos" ada di Supabase storage dan public.');
+      return null;
+    }
+  };
+
+  const handleClockIn = async () => {
+    if (!selectedFile) return;
+    setIsLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Pengguna belum login");
+
+      const photoUrl = await uploadPhoto(selectedFile);
+      if (!photoUrl) throw new Error("Gagal mendapatkan URL foto");
+
+      const { data, error } = await supabase
+        .from('attendances')
+        .insert({
+          user_id: user.id,
+          clock_in: new Date().toISOString(),
+          photo_url: photoUrl,
+          status: 'present'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAttendanceId(data.id);
+      setStatusAbsen('sudah_masuk');
+      alert('Berhasil Clock In!');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+
+    } catch (error: any) {
+      console.error('Error Clock In:', error);
+      alert(`Clock In gagal: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClockOut = async () => {
+    if (!selectedFile || !attendanceId) return;
+    setIsLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Pengguna belum login");
+
+      const { error: updateError } = await supabase
+        .from('attendances')
+        .update({
+          clock_out: new Date().toISOString(),
+        })
+        .eq('id', attendanceId);
+
+      if (updateError) throw updateError;
+
+      alert('Berhasil Clock Out!');
+      setStatusAbsen('selesai');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+
+    } catch (error: any) {
+      console.error('Error Clock Out:', error);
+      alert(`Clock Out gagal: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Format Waktu dan Tanggal
+  const formattedTime = currentTime.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  const formattedDate = currentTime.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  return (
+    <div className="w-full max-w-xl mx-auto pb-12 animate-in fade-in zoom-in-95 duration-500">
+      <Card className="shadow-2xl border-slate-200 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+        <CardHeader className="text-center bg-white border-b border-slate-100 pb-8 pt-8 relative z-10">
+          <CardTitle className="text-3xl font-extrabold text-slate-800 mb-2 tracking-tight">
+            Presensi Digital
+          </CardTitle>
+          <CardDescription className="text-slate-500 text-base font-medium">
+            Silakan ambil swafoto (selfie) sebelum Clock In / Out
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="p-8 flex flex-col items-center space-y-8 bg-slate-50/50 relative z-10">
+          
+          {/* DIGITAL CLOCK */}
+          <div className="text-center space-y-2 bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
+            <div className="text-5xl font-mono font-black text-blue-600 tracking-wider">
+              {formattedTime}
+            </div>
+            <div className="text-sm text-slate-500 font-semibold uppercase tracking-widest">
+              {formattedDate}
+            </div>
+          </div>
+
+          {statusAbsen === 'selesai' ? (
+            <div className="w-full max-w-sm flex flex-col items-center justify-center space-y-4 py-12">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-2 shadow-inner">
+                <CheckCircle className="w-12 h-12 text-green-600" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-slate-800">Absensi Selesai</h3>
+                <p className="text-slate-500 mt-2 font-medium">Anda sudah menyelesaikan absensi hari ini.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* CAMERA / PHOTO UPLOAD */}
+              <div className="w-full max-w-sm flex flex-col items-center space-y-4">
+                <div 
+                  className={`w-full aspect-[3/4] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center overflow-hidden relative transition-all duration-200 shadow-sm ${
+                    previewUrl ? 'border-transparent bg-slate-900' : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
+                  }`}
+                  onClick={() => !previewUrl && fileInputRef.current?.click()}
+                >
+                  {previewUrl ? (
+                    <img 
+                      src={previewUrl} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover animate-in fade-in"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-slate-400 group">
+                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+                        <Camera className="w-8 h-8 group-hover:text-blue-500 transition-colors" />
+                      </div>
+                      <span className="text-slate-500 font-medium group-hover:text-blue-600 transition-colors">Buka Kamera</span>
+                    </div>
+                  )}
+                </div>
+
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="user" 
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
+
+                <Button 
+                  variant={previewUrl ? 'outline' : 'secondary'}
+                  className={`w-full font-semibold py-6 text-base rounded-xl transition-all ${
+                    previewUrl ? 'hover:bg-slate-100' : 'bg-slate-800 text-white hover:bg-slate-700 shadow-md'
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {previewUrl ? 'Ubah Foto Selfie' : 'Ambil Foto Selfie'}
+                </Button>
+              </div>
+
+              {/* ACTION BUTTONS */}
+              <div className="w-full max-w-sm pt-6 border-t border-slate-200">
+                {statusAbsen === 'belum' && (
+                  <Button 
+                    className="w-full py-6 text-lg font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                    disabled={!selectedFile || isLoading}
+                    onClick={handleClockIn}
+                  >
+                    {isLoading ? (
+                      <span className="animate-pulse">Memproses...</span>
+                    ) : (
+                      <>
+                        <Clock className="w-5 h-5 mr-2" />
+                        Clock In
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {statusAbsen === 'sudah_masuk' && (
+                  <Button 
+                    variant="destructive"
+                    className="w-full py-6 text-lg font-bold rounded-xl shadow-lg shadow-rose-600/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                    disabled={!selectedFile || isLoading}
+                    onClick={handleClockOut}
+                  >
+                    {isLoading ? (
+                      <span className="animate-pulse">Memproses...</span>
+                    ) : (
+                      <>
+                        <LogOut className="w-5 h-5 mr-2" />
+                        Clock Out
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Presensi;
