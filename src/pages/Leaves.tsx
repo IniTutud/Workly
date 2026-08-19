@@ -10,7 +10,6 @@ import {
 type Leave = {
   id: string;
   name: string;
-  type: string;
   startDate: string;
   endDate: string;
   reason: string;
@@ -65,8 +64,7 @@ function Leaves() {
 
       if (item.document_url) {
         let filePath = item.document_url;
-        
-        // Membersihkan path jika tersimpan full URL public Supabase
+                
         if (filePath.includes("/public/leave_documents/")) {
           const parts = filePath.split("/public/leave_documents/");
           if (parts.length > 1) {
@@ -79,7 +77,7 @@ function Leaves() {
         } else {        
           const { data: signedUrlData } = await supabase.storage
             .from("leave_documents")
-            .createSignedUrl(filePath, 3600); // Signed URL valid 1 jam
+            .createSignedUrl(filePath, 3600); 
 
           if (signedUrlData) {
             fullDocumentUrl = signedUrlData.signedUrl;
@@ -90,7 +88,6 @@ function Leaves() {
       return {
         id: item.id,
         name: item.profiles?.full_name || "Unknown",
-        type: "Cuti / Sakit", 
         startDate: formatDate(item.start_date),
         endDate: formatDate(item.end_date),
         reason: item.reason || "-",
@@ -235,8 +232,7 @@ function Leaves() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
-                <th className="px-6 py-4 font-medium">Nama</th>
-                <th className="px-6 py-4 font-medium">Jenis Cuti</th>
+                <th className="px-6 py-4 font-medium">Nama</th>               
                 <th className="px-6 py-4 font-medium">Tanggal</th>
                 <th className="px-6 py-4 font-medium">Alasan</th>
                 <th className="px-6 py-4 font-medium">Lampiran</th>
@@ -272,11 +268,7 @@ function Leaves() {
                   >
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {leave.name}
-                    </td>
-
-                    <td className="px-6 py-4 text-slate-600">
-                      {leave.type}
-                    </td>
+                    </td>                    
 
                     <td className="px-6 py-4 text-slate-600">
                       {leave.startDate} - {leave.endDate}
