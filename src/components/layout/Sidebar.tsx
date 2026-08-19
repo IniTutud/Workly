@@ -19,7 +19,7 @@ function Sidebar() {
 
         <nav className="flex flex-col gap-6">
             <NavLink
-                to="/"
+                to="/dashboard"
                 className={({ isActive }) =>
                 `flex w-full items-center justify-center rounded-full px-4 py-3 transition gap-2 ${
                     isActive
@@ -72,20 +72,6 @@ function Sidebar() {
         </nav>
 
         <div className="flex-1" />
-
-        {/* <div className="border-t border-yellow-500 pt-5">
-          <button className="flex w-full items-center justify-center gap-3 rounded-lg px-3 py-3 hover:bg-blue-800">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500">
-              A
-            </div>
-
-            <div className="text-left">
-              <p className="text-sm font-semibold">Admin HR</p>
-              <p className="text-xs text-blue-200">Administrator</p>
-            </div>
-          </button>
-        </div> */}
-
       </div>
     </aside>
   );

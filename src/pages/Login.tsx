@@ -50,7 +50,7 @@ export default function Login() {
 
       // 4. Redirect berdasarkan Role dengan opsi replace: true (mencegah bug tombol Back)
       if (role === 'admin') {
-        navigate('/', { replace: true });
+        navigate('/dashboard');
       } else if (role === 'karyawan') {
         navigate('/karyawan/dashboard', { replace: true });
       } else {
@@ -69,11 +69,11 @@ export default function Login() {
       {/* Card Container */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden relative">
         {/* Top Decorative Line */}
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500"></div>
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-blue-600 to-indigo-500"></div>
         
         <div className="p-8">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-blue-500/30">
+            <div className="w-12 h-12 bg-linear-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-blue-500/30">
               W
             </div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Login ke Workly</h1>
