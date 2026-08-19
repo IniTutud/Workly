@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
-import {
-  X,
+import { 
   ChevronDown
 } from "lucide-react";
 
@@ -32,83 +31,117 @@ function Attendance() {
   });
 
   useEffect(() => {
-    fetchAttendance();
-  }, []);
+    fetchAttendanceAndEmployees();
+  }, [selectedDate]);
 
-  const fetchAttendance = async () => {
+  const fetchAttendanceAndEmployees = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("attendances")
-      .select(`
-        id,
-        user_id,
-        clock_in,
-        clock_out,
-        photo_url,
-        status,
-        profiles (
-          full_name,
-          department,
-          role
-        )
-      `)
-      .order("clock_in", { ascending: false });
+    try {      
+      const { data: employeesData, error: empError } = await supabase
+        .from("profiles")
+        .select("id, full_name, department")
+        .eq("role", "karyawan");
 
-    if (error) {
-      console.error("Gagal mengambil data attendance:", error);
-      alert("Gagal mengambil data absensi.");
-      setLoading(false);
-      return;
-    }
+      if (empError) throw empError;     
+        const { data: attendanceData, error: attError } = await supabase
+          .from("attendances")
+          .select(`
+            id,
+            user_id,
+            clock_in,
+            clock_out,
+            photo_url,
+            status
+          `);
 
-    const formattedAttendancePromises = (data || []).map(async (item: any) => {
-      let fullPhotoUrl = null;
-
-      if (item.photo_url) {
-        let filePath = item.photo_url;
-
-        if (item.photo_url.includes("/public/attendance_photos/")) {
-          filePath = item.photo_url.split("/public/attendance_photos/")[1];
-        }
+      if (attError) throw attError;      
+      const attendanceMap = new Map();
       
-        if (filePath.startsWith("http")) {
-          fullPhotoUrl = filePath;
-        } else {          
-          const { data: signedUrlData, error: signedError } = await supabase.storage
-            .from("attendance_photos")
-            .createSignedUrl(filePath, 3600);
-          
-          if (signedError) {
-            console.error("Gagal load foto:", signedError);
-          } else if (signedUrlData) {
-            fullPhotoUrl = signedUrlData.signedUrl;
+      const formattedAttendancePromises = (attendanceData || []).map(async (item: any) => {
+        let fullPhotoUrl = null;
+
+        if (item.photo_url) {
+          let filePath = item.photo_url;
+
+          if (item.photo_url.includes("/public/attendance_photos/")) {
+            const parts = item.photo_url.split("/public/attendance_photos/");
+            if (parts.length > 1) filePath = parts[1];
+          }
+        
+          if (filePath.startsWith("http")) {
+            fullPhotoUrl = filePath;
+          } else {         
+            const { data: signedUrlData } = await supabase.storage
+              .from("attendance_photos")
+              .createSignedUrl(filePath, 3600);
+            
+            if (signedUrlData) {
+              fullPhotoUrl = signedUrlData.signedUrl;
+            }
           }
         }
-      }
 
-      return {
-        id: item.id,
-        name: item.profiles?.full_name || "Unknown",
-        department: item.profiles?.department || "-",
-        date: formatDate(item.clock_in),
-        checkIn: formatTime(item.clock_in),
-        checkOut: formatTime(item.clock_out),
-        status: getStatusLabel(item.status),
-        photoUrl: fullPhotoUrl,
-        rawDate: item.clock_in,
-      };
-    });
+        const itemDate = item.clock_in ? item.clock_in.split("T")[0] : "";
 
-    const formattedAttendance = await Promise.all(formattedAttendancePromises);
+        const mappedData = {
+          id: item.id,
+          userId: item.user_id,
+          dateFormatted: formatDate(item.clock_in),
+          checkIn: formatTime(item.clock_in),
+          checkOut: formatTime(item.clock_out),
+          status: getStatusLabel(item.status),
+          photoUrl: fullPhotoUrl,
+          rawDate: itemDate,
+        };
+        
+        attendanceMap.set(`${item.user_id}_${itemDate}`, mappedData);
+      });
 
-    setAttendance(formattedAttendance);
-    setLoading(false);
+      await Promise.all(formattedAttendancePromises);
+      
+      const combinedList: Attendance[] = (employeesData || []).map((emp: any) => {
+        const key = `${emp.id}_${selectedDate}`;
+        const existingRecord = attendanceMap.get(key);
+
+        if (existingRecord) {
+          return {
+            id: existingRecord.id,
+            name: emp.full_name,
+            department: emp.department || "-",
+            date: existingRecord.dateFormatted,
+            checkIn: existingRecord.checkIn,
+            checkOut: existingRecord.checkOut,
+            status: existingRecord.status,
+            photoUrl: existingRecord.photoUrl,
+            rawDate: selectedDate,
+          };
+        } else {          
+          return {
+            id: `absent_${emp.id}_${selectedDate}`,
+            name: emp.full_name,
+            department: emp.department || "-",
+            date: formatDate(selectedDate),
+            checkIn: "-",
+            checkOut: "-",
+            status: "Tidak Hadir",
+            photoUrl: null,
+            rawDate: selectedDate,
+          };
+        }
+      });
+
+      setAttendance(combinedList);
+    } catch (error) {
+      console.error("Gagal memuat rekap absensi:", error);
+      alert("Gagal mengambil data rekap absensi.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatDate = (date: string | null) => {
     if (!date) return "-";
-
     return new Date(date).toLocaleDateString("id-ID", {
       day: "2-digit",
       month: "short",
@@ -116,14 +149,8 @@ function Attendance() {
     });
   };
 
-  const attendanceByDate = attendance.filter((item) => {
-    if (!selectedDate) return true;
-    return item.rawDate.startsWith(selectedDate);
-  });
-
   const formatTime = (date: string | null) => {
     if (!date) return "-";
-
     return new Date(date).toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
@@ -134,8 +161,13 @@ function Attendance() {
     if (status === "present") return "Hadir";
     if (status === "late") return "Terlambat";
     if (status === "absent") return "Tidak Hadir";
-    return status;
+    return status || "Tidak Hadir";
   };
+  
+  const attendanceByDate = attendance.filter((item) => {
+    if (!selectedDate) return true;
+    return item.rawDate === selectedDate;
+  });
 
   const filteredAttendance = attendanceByDate.filter((item) => {
     const matchSearch =
@@ -152,7 +184,7 @@ function Attendance() {
   const totalAttendance = attendanceByDate.length;
 
   const totalPresent = attendanceByDate.filter(
-    (item) => item.status === "Hadir"
+    (item) => item.status === "Hadir" || item.status === "Terlambat"
   ).length;
 
   const totalAbsent = attendanceByDate.filter(
@@ -172,7 +204,6 @@ function Attendance() {
         <h1 className="text-2xl font-semibold text-slate-900">
           Rekap Absensi
         </h1>
-
         <p className="mt-1 text-sm text-slate-500">
           Lihat rekap presensi seluruh karyawan
         </p>
@@ -181,7 +212,7 @@ function Attendance() {
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">
-            Total Data Absensi
+            Total Karyawan
           </p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">
             {totalAttendance}
@@ -190,7 +221,7 @@ function Attendance() {
 
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-sm text-green-500">
-            Hadir
+            Hadir / Terlambat
           </p>
           <p className="mt-2 text-2xl font-semibold text-green-600">
             {totalPresent}
@@ -227,10 +258,10 @@ function Attendance() {
               />
               {selectedDate && (
                 <button
-                  onClick={() => setSelectedDate("")}
+                  onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
                   className="whitespace-nowrap text-sm text-blue-500 hover:text-blue-700 hover:underline"
                 >
-                  Reset
+                  Hari Ini
                 </button>
               )}
             </div>
@@ -271,7 +302,7 @@ function Attendance() {
                   </div>
                 </>
               )}
-            </div>                        
+            </div>                 
           </div>
         </div>
       </div>
@@ -325,7 +356,7 @@ function Attendance() {
                         </button>
                       ) : (
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-400">
-                          No
+                          -
                         </div>
                       )}
                     </td>
