@@ -3,7 +3,9 @@ import { supabase } from "../utils/supabase";
 import { 
   Check,
   X,
-  ChevronDown } from "lucide-react";
+  ChevronDown,
+  FileText,
+} from "lucide-react";
 
 type Leave = {
   id: string;
@@ -14,6 +16,7 @@ type Leave = {
   reason: string;
   status: "pending" | "approved" | "rejected";
   rawStartDate: string;
+  documentUrl: string | null;
 };
 
 function Leaves() {
@@ -22,8 +25,9 @@ function Leaves() {
   
   const [selectedDate, setSelectedDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua");
-
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLeaves();
@@ -42,6 +46,7 @@ function Leaves() {
         reason,
         status,
         created_at,
+        document_url,
         profiles (
           full_name
         )
@@ -55,16 +60,47 @@ function Leaves() {
       return;
     }
 
-    const formattedLeaves: Leave[] = (data || []).map((leave: any) => ({
-      id: leave.id,
-      name: leave.profiles?.full_name || "Unknown",
-      type: "Cuti Tahunan", 
-      startDate: formatDate(leave.start_date),
-      endDate: formatDate(leave.end_date),
-      reason: leave.reason || "-",
-      status: leave.status,
-      rawStartDate: leave.start_date, 
-    }));
+    const formattedLeavesPromises = (data || []).map(async (item: any) => {
+      let fullDocumentUrl = null;
+
+      if (item.document_url) {
+        let filePath = item.document_url;
+        
+        // Membersihkan path jika tersimpan full URL public Supabase
+        if (filePath.includes("/public/leave_documents/")) {
+          const parts = filePath.split("/public/leave_documents/");
+          if (parts.length > 1) {
+            filePath = parts[1];
+          }
+        }
+
+        if (filePath.startsWith("http")) {
+          fullDocumentUrl = filePath;
+        } else {        
+          const { data: signedUrlData } = await supabase.storage
+            .from("leave_documents")
+            .createSignedUrl(filePath, 3600); // Signed URL valid 1 jam
+
+          if (signedUrlData) {
+            fullDocumentUrl = signedUrlData.signedUrl;
+          }
+        }
+      }
+
+      return {
+        id: item.id,
+        name: item.profiles?.full_name || "Unknown",
+        type: "Cuti / Sakit", 
+        startDate: formatDate(item.start_date),
+        endDate: formatDate(item.end_date),
+        reason: item.reason || "-",
+        status: item.status,
+        rawStartDate: item.start_date,
+        documentUrl: fullDocumentUrl,
+      };
+    });
+
+    const formattedLeaves = await Promise.all(formattedLeavesPromises);
 
     setLeaves(formattedLeaves);
     setLoading(false);
@@ -125,14 +161,15 @@ function Leaves() {
     if (val === "rejected") return "Rejected";
     return "Semua Status";
   };
+
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-slate-900">
-          Pengajuan Cuti
+          Pengajuan Cuti & Izin
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Kelola dan review pengajuan cuti karyawan
+          Kelola dan review pengajuan cuti serta lampiran dokumen karyawan
         </p>
       </div>
       
@@ -164,7 +201,7 @@ function Leaves() {
           </button>
 
           {isDropdownOpen && (
-            <>            
+            <>           
               <div 
                 className="fixed inset-0 z-40"
                 onClick={() => setIsDropdownOpen(false)}
@@ -202,6 +239,7 @@ function Leaves() {
                 <th className="px-6 py-4 font-medium">Jenis Cuti</th>
                 <th className="px-6 py-4 font-medium">Tanggal</th>
                 <th className="px-6 py-4 font-medium">Alasan</th>
+                <th className="px-6 py-4 font-medium">Lampiran</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Aksi</th>
               </tr>
@@ -211,7 +249,7 @@ function Leaves() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-slate-500"
                   >
                     Memuat data...
@@ -220,7 +258,7 @@ function Leaves() {
               ) : filteredLeaves.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-slate-500"
                   >
                     Data pengajuan cuti tidak ditemukan.
@@ -246,6 +284,21 @@ function Leaves() {
 
                     <td className="px-6 py-4 text-slate-500">
                       {leave.reason}
+                    </td>
+
+                    {/* TOMBOL LIHAT LAMPIRAN */}
+                    <td className="px-6 py-4">
+                      {leave.documentUrl ? (
+                        <button
+                          onClick={() => setSelectedImage(leave.documentUrl)}
+                          className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 transition"
+                        >
+                          <FileText size={14} />
+                          Lihat Lampiran
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">Tidak ada</span>
+                      )}
                     </td>
 
                     <td className="px-6 py-4">
@@ -296,6 +349,41 @@ function Leaves() {
           </table>
         </div>
       </div>
+
+      {/* Modal Preview Lampiran / Foto */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-[90vw] rounded-xl bg-white p-3 shadow-xl flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-lg text-white hover:bg-black/80"
+            >
+              ×
+            </button>
+            
+            <img
+              src={selectedImage}
+              alt="Lampiran Surat Cuti / Sakit"
+              className="max-h-[75vh] max-w-[80vw] rounded-lg object-contain"
+            />
+            
+            <a
+              href={selectedImage}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700"
+            >
+              Buka di Tab Baru / Download
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
