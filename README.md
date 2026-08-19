@@ -1,3 +1,6 @@
+<img width="1500" height="500" alt="ss" src="https://github.com/user-attachments/assets/b0b295cf-44ce-488d-88ad-45f9caa83b24" />
+
+
 ## Features
 - Authentication menggunakan Supabase Auth
 - Dashboard Admin
