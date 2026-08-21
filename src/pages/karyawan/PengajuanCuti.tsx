@@ -1,11 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { CalendarDays, Send, CheckCircle2 } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { CalendarDays, Send, CheckCircle2, FileText } from 'lucide-react';
+
+interface Leave {
+  id: string | number;
+  submissionDate: string;
+  leaveDate: string;
+  reason: string;
+  status: string;
+}
+
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+};
 
 const PengajuanCuti: React.FC = () => {
   const [startDate, setStartDate] = useState('');
@@ -15,6 +32,47 @@ const PengajuanCuti: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  
+  const [leaveHistory, setLeaveHistory] = useState<Leave[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    fetchLeaveHistory();
+  }, []);
+
+  const fetchLeaveHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('leaves')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedLeaves: Leave[] = (data || []).map((lv: any) => {
+        const start = formatDate(lv.start_date);
+        const end = formatDate(lv.end_date);
+        const leaveDateStr = start === end ? start : `${start} s/d ${end}`;
+        return {
+          id: lv.id,
+          submissionDate: formatDate(lv.created_at),
+          leaveDate: leaveDateStr,
+          reason: lv.reason || '-',
+          status: lv.status || 'pending'
+        };
+      });
+      setLeaveHistory(mappedLeaves);
+    } catch (error) {
+      console.error('Error fetching leave history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -97,6 +155,9 @@ const PengajuanCuti: React.FC = () => {
       
       // Auto hide success message after 5 seconds
       setTimeout(() => setIsSuccess(false), 5000);
+      
+      // Refresh history
+      fetchLeaveHistory();
 
     } catch (error: any) {
       console.error('Error submitting leave request:', error);
@@ -107,7 +168,8 @@ const PengajuanCuti: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto pb-12 animate-in fade-in zoom-in-95 duration-500">
+    // UBAH 1: max-w-2xl diganti menjadi max-w-4xl agar UI lebih lebar dan lega
+    <div className="w-full max-w-4xl mx-auto pb-12 animate-in fade-in zoom-in-95 duration-500">
       <Card className="shadow-2xl border-slate-200 overflow-hidden relative">
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
         <CardHeader className="text-center bg-white border-b border-slate-100 pb-8 pt-8 relative z-10">
@@ -123,7 +185,7 @@ const PengajuanCuti: React.FC = () => {
         <CardContent className="p-8 bg-slate-50/50 relative z-10">
           {isSuccess && (
             <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 animate-in slide-in-from-top-4">
-              <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-10 h-9 text-emerald-500 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-sm font-bold text-emerald-800">Berhasil Diajukan!</h4>
                 <p className="text-sm text-emerald-600 mt-1">Permohonan cuti/izin Anda telah berhasil dikirim dan sedang menunggu persetujuan HRD.</p>
@@ -201,6 +263,67 @@ const PengajuanCuti: React.FC = () => {
               </Button>
             </div>
           </form>
+
+          {/* RIWAYAT PENGAJUAN CUTI */}
+          <div className="w-full pt-8 border-t border-slate-200 mt-8">
+            <div className="flex items-center gap-2 mb-4 text-slate-800">
+              <FileText className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-lg font-bold">Riwayat Pengajuan</h3>
+            </div>
+            
+            {/* UBAH 2: Menghapus overflow-x-auto di div ini untuk mencegah bentrok */}
+            <div className="rounded-md border border-slate-300 bg-white w-full">
+              {/* UBAH 3: Menambahkan min-w-[700px] pada komponen Table agar otomatis bisa di-scroll jika layar kecil */}
+              <Table className="min-w-[700px]">
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead className="font-semibold text-slate-600">Tanggal Pengajuan</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Tanggal Cuti</TableHead>
+                    {/* UBAH 4: Memastikan kolom alasan cukup lebar */}
+                    <TableHead className="font-semibold text-slate-600 min-w-[200px]">Keterangan / Alasan</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingHistory ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-slate-500">
+                        Memuat data...
+                      </TableCell>
+                    </TableRow>
+                  ) : leaveHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-slate-500">
+                        Belum ada riwayat pengajuan cuti.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    leaveHistory.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium text-slate-700">{row.submissionDate}</TableCell>
+                        <TableCell>{row.leaveDate}</TableCell>
+                        <TableCell className="min-w-[200px]">{row.reason}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="default"
+                            className={
+                              row.status.toLowerCase() === 'approved' || row.status.toLowerCase() === 'disetujui'
+                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+                                : row.status.toLowerCase() === 'pending' || row.status.toLowerCase() === 'menunggu'
+                                  ? 'bg-amber-500 hover:bg-amber-600 text-white' 
+                                  : 'bg-rose-500 hover:bg-rose-600 text-white'
+                            }
+                          >
+                            {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
