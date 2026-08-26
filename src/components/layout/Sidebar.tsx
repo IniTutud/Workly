@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ClipboardList,
   LogOut,
+  Folder,
 } from "lucide-react";
 
 function Sidebar() {
@@ -68,6 +69,19 @@ function Sidebar() {
                 }
             >
                 <ClipboardList className="h-5 w-5" />Rekap Absensi
+            </NavLink>
+
+            <NavLink
+                to="/admin/attendancemonthly"
+                className={({ isActive }) =>
+                `flex w-full items-center justify-center rounded-full px-4 py-3 transition gap-2 ${
+                    isActive
+                    ? "bg-cyan-500 text-white"
+                    : "text-white hover:bg-blue-800"
+                }`
+                }
+            >
+                <Folder className="h-5 w-5" />Rekap Bulanan
             </NavLink>
         </nav>
 

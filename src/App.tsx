@@ -8,6 +8,7 @@ import Attendance from "./pages/Attendance";
 import Login from "./pages/Login";
 import EmployeeDashboard from "./pages/karyawan/EmployeeDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AttendanceMonthly from "./pages/AttendanceMonthly";
 
 export default function App() {
   return (
@@ -57,6 +58,17 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <AdminLayout>
                 <Attendance />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/attendancemonthly"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout>
+                <AttendanceMonthly />
               </AdminLayout>
             </ProtectedRoute>
           }
