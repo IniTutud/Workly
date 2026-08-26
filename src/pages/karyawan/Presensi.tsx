@@ -2,7 +2,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, Clock, LogOut, CheckCircle } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Camera, Clock, LogOut, CheckCircle, FileText } from 'lucide-react';
+
+interface Attendance {
+  id: string | number;
+  date: string;
+  clockIn: string;
+  clockOut: string;
+  status: string;
+}
+
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+};
+
+const formatTime = (timeStr: string | null) => {
+  if (!timeStr) return '-';
+  if (timeStr.includes('T')) {
+    const date = new Date(timeStr);
+    if (isNaN(date.getTime())) return timeStr;
+    return new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' }).format(date);
+  }
+  return timeStr.substring(0, 5); // Fallback for HH:MM:SS format
+};
 
 const Presensi: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -11,6 +38,8 @@ const Presensi: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [statusAbsen, setStatusAbsen] = useState<'belum' | 'sudah_masuk' | 'selesai'>('belum');
   const [attendanceId, setAttendanceId] = useState<string | null>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Real-time clock
@@ -56,7 +85,37 @@ const Presensi: React.FC = () => {
     };
 
     fetchAttendanceStatus();
+    fetchAttendanceHistory();
   }, []);
+
+  const fetchAttendanceHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('clock_in', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedAttendances: Attendance[] = (data || []).map((att: any) => ({
+        id: att.id,
+        date: formatDate(att.date || att.clock_in),
+        clockIn: formatTime(att.clock_in),
+        clockOut: formatTime(att.clock_out),
+        status: att.status || 'present'
+      }));
+      setAttendanceHistory(mappedAttendances);
+    } catch (error) {
+      console.error('Error fetching attendance history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -123,6 +182,7 @@ const Presensi: React.FC = () => {
       setSelectedFile(null);
       setPreviewUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      fetchAttendanceHistory();
 
     } catch (error: any) {
       console.error('Error Clock In:', error);
@@ -154,6 +214,7 @@ const Presensi: React.FC = () => {
       setSelectedFile(null);
       setPreviewUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      fetchAttendanceHistory();
 
     } catch (error: any) {
       console.error('Error Clock Out:', error);
@@ -254,7 +315,7 @@ const Presensi: React.FC = () => {
                   }`}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  {previewUrl ? 'Ubah Foto Selfie' : 'Ambil Foto Selfie'}
+                  {previewUrl ? 'Ubah Foto Selfie' : 'Upload Foto Selfie'}
                 </Button>
               </div>
 
@@ -298,6 +359,65 @@ const Presensi: React.FC = () => {
             </>
           )}
 
+          {/* RIWAYAT ABSENSI */}
+          <div className="w-full pt-8 border-t border-slate-200 mt-8">
+            <div className="flex items-center gap-2 mb-4 text-slate-800">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <h3 className="text-lg font-bold">Riwayat Absensi</h3>
+            </div>
+            
+            <div className="rounded-md border border-slate-200 overflow-hidden bg-white w-full">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead className="font-semibold text-slate-600">Tanggal</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Clock In</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Clock Out</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingHistory ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-slate-500">
+                        Memuat data...
+                      </TableCell>
+                    </TableRow>
+                  ) : attendanceHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-slate-500">
+                        Belum ada riwayat absensi.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    attendanceHistory.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium text-slate-700">{row.date}</TableCell>
+                        <TableCell>{row.clockIn}</TableCell>
+                        <TableCell>{row.clockOut}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              row.status.toLowerCase() === 'present' || row.status.toLowerCase() === 'hadir' ? 'default' : 
+                              row.status.toLowerCase() === 'late' || row.status.toLowerCase() === 'terlambat' ? 'secondary' : 
+                              'destructive'
+                            }
+                            className={
+                              row.status.toLowerCase() === 'present' || row.status.toLowerCase() === 'hadir' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 
+                              row.status.toLowerCase() === 'late' || row.status.toLowerCase() === 'terlambat' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 
+                              'bg-rose-500 hover:bg-rose-600 text-white'
+                            }
+                          >
+                            {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

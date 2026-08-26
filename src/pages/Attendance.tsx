@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
-import { 
+import {
   ChevronDown
 } from "lucide-react";
 
@@ -22,9 +22,9 @@ function Attendance() {
   const [statusFilter, setStatusFilter] = useState("Semua");
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-    
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
+
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split("T")[0];
@@ -37,16 +37,16 @@ function Attendance() {
   const fetchAttendanceAndEmployees = async () => {
     setLoading(true);
 
-    try {      
+    try {
       const { data: employeesData, error: empError } = await supabase
         .from("profiles")
         .select("id, full_name, department")
         .eq("role", "karyawan");
 
-      if (empError) throw empError;     
-        const { data: attendanceData, error: attError } = await supabase
-          .from("attendances")
-          .select(`
+      if (empError) throw empError;
+      const { data: attendanceData, error: attError } = await supabase
+        .from("attendances")
+        .select(`
             id,
             user_id,
             clock_in,
@@ -55,9 +55,9 @@ function Attendance() {
             status
           `);
 
-      if (attError) throw attError;      
+      if (attError) throw attError;
       const attendanceMap = new Map();
-      
+
       const formattedAttendancePromises = (attendanceData || []).map(async (item: any) => {
         let fullPhotoUrl = null;
 
@@ -68,14 +68,14 @@ function Attendance() {
             const parts = item.photo_url.split("/public/attendance_photos/");
             if (parts.length > 1) filePath = parts[1];
           }
-        
+
           if (filePath.startsWith("http")) {
             fullPhotoUrl = filePath;
-          } else {         
+          } else {
             const { data: signedUrlData } = await supabase.storage
               .from("attendance_photos")
               .createSignedUrl(filePath, 3600);
-            
+
             if (signedUrlData) {
               fullPhotoUrl = signedUrlData.signedUrl;
             }
@@ -90,16 +90,16 @@ function Attendance() {
           dateFormatted: formatDate(item.clock_in),
           checkIn: formatTime(item.clock_in),
           checkOut: formatTime(item.clock_out),
-          status: getStatusLabel(item.status),
+          status: item.clock_in ? getStatusLabel(item.status) : "Tidak Hadir",
           photoUrl: fullPhotoUrl,
           rawDate: itemDate,
         };
-        
+
         attendanceMap.set(`${item.user_id}_${itemDate}`, mappedData);
       });
 
       await Promise.all(formattedAttendancePromises);
-      
+
       const combinedList: Attendance[] = (employeesData || []).map((emp: any) => {
         const key = `${emp.id}_${selectedDate}`;
         const existingRecord = attendanceMap.get(key);
@@ -116,7 +116,7 @@ function Attendance() {
             photoUrl: existingRecord.photoUrl,
             rawDate: selectedDate,
           };
-        } else {          
+        } else {
           return {
             id: `absent_${emp.id}_${selectedDate}`,
             name: emp.full_name,
@@ -157,13 +157,14 @@ function Attendance() {
     });
   };
 
-  const getStatusLabel = (status: string) => {
+
+  const getStatusLabel = (status: string | null | undefined) => {
     if (status === "present") return "Hadir";
     if (status === "late") return "Terlambat";
     if (status === "absent") return "Tidak Hadir";
-    return status || "Tidak Hadir";
+    return "Tidak Hadir";
   };
-  
+
   const attendanceByDate = attendance.filter((item) => {
     if (!selectedDate) return true;
     return item.rawDate === selectedDate;
@@ -190,7 +191,7 @@ function Attendance() {
   const totalAbsent = attendanceByDate.filter(
     (item) => item.status === "Tidak Hadir"
   ).length;
-  
+
   const getFilterLabel = (val: string) => {
     if (val === "Hadir") return "Hadir";
     if (val === "Terlambat") return "Terlambat";
@@ -208,7 +209,7 @@ function Attendance() {
           Lihat rekap presensi seluruh karyawan
         </p>
       </div>
-      
+
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">
@@ -276,12 +277,12 @@ function Attendance() {
               </button>
 
               {isDropdownOpen && (
-                <>                  
-                  <div 
+                <>
+                  <div
                     className="fixed inset-0 z-40"
                     onClick={() => setIsDropdownOpen(false)}
                   ></div>
-                  
+
                   <div className="absolute right-0 top-full z-50 mt-2 w-full min-w-48 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
                     {["Semua", "Hadir", "Terlambat", "Tidak Hadir"].map((status) => (
                       <button
@@ -290,11 +291,10 @@ function Attendance() {
                           setStatusFilter(status);
                           setIsDropdownOpen(false);
                         }}
-                        className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                          statusFilter === status
+                        className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${statusFilter === status
                             ? "bg-blue-50 text-blue-700 font-medium"
                             : "text-slate-600 hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         {getFilterLabel(status)}
                       </button>
@@ -302,7 +302,7 @@ function Attendance() {
                   </div>
                 </>
               )}
-            </div>                 
+            </div>
           </div>
         </div>
       </div>
@@ -341,7 +341,7 @@ function Attendance() {
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {item.name}
                     </td>
-                
+
                     <td className="px-6 py-4">
                       {item.photoUrl ? (
                         <button
@@ -379,13 +379,12 @@ function Attendance() {
 
                     <td className="px-6 py-4">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          item.status === "Hadir"
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${item.status === "Hadir"
                             ? "bg-green-100 text-green-700"
                             : item.status === "Terlambat"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
                       >
                         {item.status}
                       </span>
@@ -397,7 +396,7 @@ function Attendance() {
           </table>
         </div>
       </div>
-      
+
       {selectedPhoto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
