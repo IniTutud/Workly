@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Clock, LogOut, CheckCircle, FileText } from 'lucide-react';
+import { Clock, LogOut, CheckCircle, FileText, RefreshCw, Camera } from 'lucide-react';
 
 interface Attendance {
   id: string | number;
@@ -40,7 +40,12 @@ const Presensi: React.FC = () => {
   const [attendanceId, setAttendanceId] = useState<string | null>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State khusus Kamera Real-time
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user"); // "user" = depan, "environment" = belakang
 
   // Real-time clock
   useEffect(() => {
@@ -48,7 +53,83 @@ const Presensi: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Check attendance status today
+  // Jalankan kamera saat halaman dibuka atau saat facingMode diganti (jika belum selesai absen)
+  useEffect(() => {
+    if (statusAbsen !== 'selesai') {
+      startCamera(facingMode);
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [facingMode, statusAbsen]);
+
+  const startCamera = async (mode: "user" | "environment") => {
+    stopCamera();
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: mode },
+        audio: false,
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (err) {
+      console.error("Gagal mengakses kamera:", err);
+      alert("Pastikan izin akses kamera diizinkan di browser/perangkat Anda.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+  };
+
+  const toggleCamera = () => {
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  };
+
+  // Ambil foto secara real-time dari video stream ke canvas
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    context.save(); // Simpan state canvas awal
+
+    // Jika sedang pakai kamera depan, balikkan secara horizontal saat dicapture 
+    // supaya hasil file fotonya tidak ikut mirror/terbalik
+    if (facingMode === 'user') {
+      context.scale(-1, 1);
+      context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+    } else {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
+    context.restore(); // Kembalikan state canvas
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `selfie_${Date.now()}.jpg`, { type: "image/jpeg" });
+        setSelectedFile(file);
+        setPreviewUrl(URL.createObjectURL(blob));
+      }
+    }, "image/jpeg", 0.85);
+  };
+
+  const retakePhoto = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
+  // Check attendance status today & history
   useEffect(() => {
     const fetchAttendanceStatus = async () => {
       try {
@@ -117,14 +198,6 @@ const Presensi: React.FC = () => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
-
   const uploadPhoto = async (file: File): Promise<string | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -147,7 +220,7 @@ const Presensi: React.FC = () => {
       return data.publicUrl;
     } catch (error) {
       console.error('Error uploading photo:', error);
-      alert('Gagal mengunggah foto. Pastikan bucket "presensi-photos" ada di Supabase storage dan public.');
+      alert('Gagal mengunggah foto. Pastikan bucket "attendance_photos" ada di Supabase storage dan public.');
       return null;
     }
   };
@@ -181,7 +254,6 @@ const Presensi: React.FC = () => {
       alert('Berhasil Clock In!');
       setSelectedFile(null);
       setPreviewUrl(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
       fetchAttendanceHistory();
 
     } catch (error: any) {
@@ -200,6 +272,8 @@ const Presensi: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Pengguna belum login");
 
+      const photoUrl = await uploadPhoto(selectedFile);
+      // Opsional kalau mau simpan foto clock out juga, atau langsung update clock_out saja:
       const { error: updateError } = await supabase
         .from('attendances')
         .update({
@@ -213,7 +287,6 @@ const Presensi: React.FC = () => {
       setStatusAbsen('selesai');
       setSelectedFile(null);
       setPreviewUrl(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
       fetchAttendanceHistory();
 
     } catch (error: any) {
@@ -224,7 +297,6 @@ const Presensi: React.FC = () => {
     }
   };
 
-  // Format Waktu dan Tanggal
   const formattedTime = currentTime.toLocaleTimeString('id-ID', {
     hour: '2-digit',
     minute: '2-digit',
@@ -247,7 +319,7 @@ const Presensi: React.FC = () => {
             Presensi Digital
           </CardTitle>
           <CardDescription className="text-slate-500 text-base font-medium">
-            Silakan ambil swafoto (selfie) sebelum Clock In / Out
+            Ambil swafoto langsung dari kamera untuk Clock In / Out
           </CardDescription>
         </CardHeader>
         
@@ -275,51 +347,67 @@ const Presensi: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* CAMERA / PHOTO UPLOAD */}
+              {/* REAL-TIME CAMERA / PREVIEW CONTAINER */}
               <div className="w-full max-w-sm flex flex-col items-center space-y-4">
-                <div 
-                  className={`w-full aspect-[3/4] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center overflow-hidden relative transition-all duration-200 shadow-sm ${
-                    previewUrl ? 'border-transparent bg-slate-900' : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
-                  }`}
-                  onClick={() => !previewUrl && fileInputRef.current?.click()}
-                >
-                  {previewUrl ? (
+                <div className="w-full aspect-[3/4] rounded-2xl border-2 border-slate-300 bg-slate-900 overflow-hidden relative shadow-md flex items-center justify-center">
+                  
+                  {!previewUrl ? (
+                    <>
+                      {/* Live Video Stream */}
+                      <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)' }}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Tombol Switch Kamera (Depan / Belakang) */}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white border-none rounded-full px-3 py-1 text-xs backdrop-blur-md flex items-center gap-1.5"
+                        onClick={toggleCamera}
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Ganti Kamera
+                      </Button>
+                    </>
+                  ) : (
+                    /* Hasil Tangkapan Foto (Preview) */
                     <img 
                       src={previewUrl} 
-                      alt="Preview" 
+                      alt="Preview Selfie" 
                       className="w-full h-full object-cover animate-in fade-in"
                     />
-                  ) : (
-                    <div className="flex flex-col items-center text-slate-400 group">
-                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
-                        <Camera className="w-8 h-8 group-hover:text-blue-500 transition-colors" />
-                      </div>
-                      <span className="text-slate-500 font-medium group-hover:text-blue-600 transition-colors">Buka Kamera</span>
-                    </div>
                   )}
                 </div>
 
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="user" 
-                  className="hidden" 
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                />
+                {/* Canvas tersembunyi untuk mengambil gambar dari video */}
+                <canvas ref={canvasRef} className="hidden" />
 
-                <Button 
-                  variant={previewUrl ? 'outline' : 'secondary'}
-                  className={`w-full font-semibold py-6 text-base rounded-xl transition-all ${
-                    previewUrl ? 'hover:bg-slate-100' : 'bg-slate-800 text-white hover:bg-slate-700 shadow-md'
-                  }`}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {previewUrl ? 'Ubah Foto Selfie' : 'Upload Foto Selfie'}
-                </Button>
+                {/* Tombol Ambil Foto / Foto Ulang */}
+                {!previewUrl ? (
+                  <Button 
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-6 text-base rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                    onClick={capturePhoto}
+                  >
+                    <Camera className="w-5 h-5" />
+                    Ambil Foto
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline"
+                    className="w-full hover:bg-slate-100 font-semibold py-6 text-base rounded-xl transition-all"
+                    onClick={retakePhoto}
+                  >
+                    Ulangi Foto
+                  </Button>
+                )}
               </div>
 
-              {/* ACTION BUTTONS */}
+              {/* ACTION BUTTONS (Clock In / Clock Out) */}
               <div className="w-full max-w-sm pt-6 border-t border-slate-200">
                 {statusAbsen === 'belum' && (
                   <Button 
@@ -424,4 +512,4 @@ const Presensi: React.FC = () => {
   );
 };
 
-export default Presensi;
+export default Presensi; // Sesuaikan dengan format export yang dipakai project lu (bisa export default Presensi)
