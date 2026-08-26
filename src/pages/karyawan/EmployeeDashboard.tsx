@@ -4,11 +4,13 @@ import { supabase } from '../../utils/supabase';
 import Profile from './Profile';
 import Presensi from './Presensi';
 import PengajuanCuti from './PengajuanCuti';
+import Rekap from "./Rekap";
 import { 
   User, 
   Clock, 
   LogOut, 
-  CalendarDays, 
+  CalendarDays,
+  ClipboardList, 
   Menu,
   X,
   ChevronRight
@@ -71,6 +73,8 @@ const EmployeeDashboard: React.FC = () => {
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'presensi', label: 'Presensi', icon: Clock },
     { id: 'leave', label: 'Pengajuan Cuti', icon: CalendarDays },
+    { id: 'rekap', label: 'Rekap Absensi', icon: ClipboardList },
+    
   ];
 
   return (
@@ -225,11 +229,13 @@ const EmployeeDashboard: React.FC = () => {
           </div>
         </header>
 
-        <div className={`flex-1 flex w-full z-10 ${(activeMenu === 'profile' || activeMenu === 'presensi' || activeMenu === 'leave') ? 'flex-col overflow-y-auto pb-24 p-6' : 'items-center justify-center p-6'}`}>
-          {activeMenu === 'profile' ? (
+        <div className={`flex-1 flex w-full z-10 ${(activeMenu === 'profile' || activeMenu === 'presensi' || activeMenu === 'rekap' ||   activeMenu === 'leave') ? 'flex-col overflow-y-auto pb-24 p-6' : 'items-center justify-center p-6'}`}>
+         {activeMenu === 'profile' ? (
             <Profile />
           ) : activeMenu === 'presensi' ? (
             <Presensi />
+          ) : activeMenu === 'rekap' ? ( 
+            <Rekap />
           ) : activeMenu === 'leave' ? (
             <PengajuanCuti />
           ) : (
