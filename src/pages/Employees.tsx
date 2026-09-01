@@ -584,77 +584,79 @@ function Employees() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="px-6 py-4 font-medium">Nama</th>
-              <th className="px-6 py-4 font-medium">Department</th>
-              <th className="px-6 py-4 font-medium">Role</th>
-              <th className="px-6 py-4 text-right font-medium">Aksi</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
+      <div className="overflow-hidden rounded-xl bg-white shadow-sm">        
+        <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
+          <table className="w-full text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                  Memuat data...
-                </td>
+                <th className="px-6 py-4 font-medium">Nama</th>
+                <th className="px-6 py-4 font-medium">Department</th>
+                <th className="px-6 py-4 font-medium">Role</th>
+                <th className="px-6 py-4 text-right font-medium">Aksi</th>
               </tr>
-            ) : filteredEmployees.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                  Belum ada data karyawan.
-                </td>
-              </tr>
-            ) : (
-              filteredEmployees.map((employee) => (
-                <tr key={employee.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">
-                    {employee.name}
-                  </td>
+            </thead>
 
-                  <td className="px-6 py-4 text-slate-500">
-                    {employee.department}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                      {employee.role}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleEditEmployee(employee)}
-                      className="mr-1 p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-800 rounded-md border border-slate-100 hover:border-slate-200"
-                      title="Edit"
-                    >
-                      <SquarePen size={18}/>
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteEmployee(employee.id)}
-                      className="mr-2 p-2 text-red-600 hover:bg-blue-50 hover:text-red-800 rounded-md border border-slate-100 hover:border-slate-200"
-                      title="Hapus"
-                    >
-                      <Trash size={18}/>
-                    </button>
-
-                    <button
-                      onClick={() => handleViewEmployee(employee.id)}
-                      className="rounded-md bg-slate-300 border border-slate-200 p-1 text-black hover:bg-slate-400"
-                      title="Detail"
-                    >
-                      <Ellipsis size={18}/>
-                    </button>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                    Memuat data...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                    Belum ada data karyawan.
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((employee) => (
+                  <tr key={employee.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {employee.name}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-500">
+                      {employee.department}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                        {employee.role}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleEditEmployee(employee)}
+                        className="mr-1 p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-800 rounded-md border border-slate-100 hover:border-slate-200"
+                        title="Edit"
+                      >
+                        <SquarePen size={18}/>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteEmployee(employee.id)}
+                        className="mr-2 p-2 text-red-600 hover:bg-blue-50 hover:text-red-800 rounded-md border border-slate-100 hover:border-slate-200"
+                        title="Hapus"
+                      >
+                        <Trash size={18}/>
+                      </button>
+
+                      <button
+                        onClick={() => handleViewEmployee(employee.id)}
+                        className="rounded-md bg-slate-300 border border-slate-200 p-1 text-black hover:bg-slate-400"
+                        title="Detail"
+                      >
+                        <Ellipsis size={18}/>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {selectedEmployee && (

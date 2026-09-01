@@ -28,6 +28,12 @@ type LeaveData = {
     status: "pending" | "approved" | "rejected";
 };
 
+type ScheduleData = {
+    user_id: string;
+    date: string;
+    status: "working" | "off" | "leave";
+};
+
 type ProfileData = {
     id: string;
     full_name: string;
@@ -76,32 +82,6 @@ function AttendanceMonthly() {
         return `${selectedYear}-${month}-${String(lastDay).padStart(2, "0")}`;
     };
 
-    // Helper untuk mengambil daftar hari kerja (Senin - Jumat) sampai hari ini
-    const getWorkDatesInPeriod = (year: number, monthIndex: number) => {
-        const dates: string[] = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
-
-        for (let day = 1; day <= lastDayOfMonth; day++) {
-            const date = new Date(year, monthIndex, day);
-            date.setHours(0, 0, 0, 0);
-
-            // Jangan hitung tanggal di masa mendatang
-            if (date > today) break;
-
-            // Mengabaikan akhir pekan (0 = Minggu, 6 = Sabtu)
-            const dayOfWeek = date.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                const m = String(monthIndex + 1).padStart(2, "0");
-                const d = String(day).padStart(2, "0");
-                dates.push(`${year}-${m}-${d}`);
-            }
-        }
-        return dates;
-    };
-
     const calculateLeaveDays = (
         startDate: string,
         endDate: string
@@ -121,6 +101,7 @@ function AttendanceMonthly() {
             const startDate = getStartDate();
             const endDate = getEndDate();
 
+            // 1. Ambil data profil karyawan
             const {
                 data: profiles,
                 error: profileError,
@@ -130,12 +111,9 @@ function AttendanceMonthly() {
                 .eq("role", "karyawan")
                 .order("full_name", { ascending: true });
 
-            if (profileError) {
-                console.error("Error mengambil profiles:", profileError);
-                alert("Gagal mengambil data karyawan.");
-                return;
-            }
+            if (profileError) throw profileError;
 
+            // 2. Ambil data absensi dalam rentang bulan ini
             const {
                 data: attendanceData,
                 error: attendanceError,
@@ -145,12 +123,9 @@ function AttendanceMonthly() {
                 .gte("clock_in", `${startDate}T00:00:00`)
                 .lt("clock_in", `${endDate}T23:59:59.999`);
 
-            if (attendanceError) {
-                console.error("Error mengambil attendance:", attendanceError);
-                alert("Gagal mengambil data absensi.");
-                return;
-            }
+            if (attendanceError) throw attendanceError;
 
+            // 3. Ambil data cuti yang disetujui
             const {
                 data: leaveData,
                 error: leaveError,
@@ -161,18 +136,27 @@ function AttendanceMonthly() {
                 .lte("start_date", endDate)
                 .gte("end_date", startDate);
 
-            if (leaveError) {
-                console.error("Error mengambil data cuti:", leaveError);
-                alert("Gagal mengambil data cuti.");
-                return;
-            }
+            if (leaveError) throw leaveError;
+
+            // 4. Ambil data jadwal (employee_schedules) dalam bulan ini sampai hari ini
+            const todayStr = new Date().toISOString().split("T")[0];
+            const maxDate = endDate < todayStr ? endDate : todayStr;
+
+            const {
+                data: schedulesData,
+                error: schedError,
+            } = await supabase
+                .from("employee_schedules")
+                .select("user_id, date, status")
+                .gte("date", startDate)
+                .lte("date", maxDate);
+
+            if (schedError) throw schedError;
 
             const attendance = (attendanceData || []) as AttendanceData[];
             const leaves = (leaveData || []) as LeaveData[];
+            const schedules = (schedulesData || []) as ScheduleData[];
             const profileList = (profiles || []) as ProfileData[];
-
-            // Daftar tanggal kerja (Senin-Jumat) dari tanggal 1 hingga hari ini
-            const workDates = getWorkDatesInPeriod(selectedYear, selectedMonth);
 
             const summary: EmployeeSummary[] = profileList.map((employee) => {
                 const employeeAttendance = attendance.filter(
@@ -191,7 +175,7 @@ function AttendanceMonthly() {
                     (item) => item.status === "late"
                 ).length;
 
-                // Format tanggal presensi yang sudah dimasukkan oleh karyawan
+                // Format tanggal presensi yang sudah masuk
                 const attendedDates = new Set(
                     employeeAttendance.map((item) => {
                         const d = new Date(item.clock_in);
@@ -202,22 +186,24 @@ function AttendanceMonthly() {
                     })
                 );
 
-                // Absen eksplisit dari DB
                 const explicitAbsent = employeeAttendance.filter(
                     (item) => item.status === "absent"
                 ).length;
 
-                // Hitung hari kerja terlewat (belum absen & tidak sedang cuti)
+                // Hitung hari kerja terlewat berdasarkan tabel jadwal (employee_schedules)
                 let unrecordedAbsent = 0;
-                workDates.forEach((dateStr) => {
-                    if (!attendedDates.has(dateStr)) {
-                        const isOnLeave = employeeLeaves.some(
-                            (leave) =>
-                                dateStr >= leave.start_date &&
-                                dateStr <= leave.end_date
-                        );
-                        if (!isOnLeave) {
-                            unrecordedAbsent++;
+                
+                schedules.forEach((sched) => {
+                    if (sched.user_id === employee.id && sched.status === "working") {
+                        if (!attendedDates.has(sched.date)) {
+                            const isOnLeave = employeeLeaves.some(
+                                (leave) =>
+                                    sched.date >= leave.start_date &&
+                                    sched.date <= leave.end_date
+                            );
+                            if (!isOnLeave) {
+                                unrecordedAbsent++;
+                            }
                         }
                     }
                 });
@@ -254,6 +240,7 @@ function AttendanceMonthly() {
             setEmployees(summary);
         } catch (error) {
             console.error("Monthly attendance error:", error);
+            alert("Gagal mengambil data rekap bulanan.");
         } finally {
             setLoading(false);
         }
@@ -274,7 +261,6 @@ function AttendanceMonthly() {
         "Desember",
     ];
 
-    // Filter karyawan berdasarkan input pencarian nama
     const filteredEmployees = employees.filter((employee) =>
         employee.name.toLowerCase().includes(search.toLowerCase())
     );
@@ -306,7 +292,7 @@ function AttendanceMonthly() {
                     Rekap Bulanan
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
-                    Lihat rekap bulanan semua karyawan
+                    Lihat rekap bulanan semua karyawan berdasarkan jadwal kerja
                 </p>
             </div>
 
@@ -322,7 +308,6 @@ function AttendanceMonthly() {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    {/* Input Search Karyawan */}
                     <input
                         type="text"
                         placeholder="Cari karyawan..."

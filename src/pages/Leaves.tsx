@@ -244,12 +244,12 @@ function Leaves() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="overflow-hidden rounded-xl bg-white shadow-sm">        
+        <div className="max-h-[60vh] overflow-y-auto scrollbar-thin">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
               <tr>
-                <th className="px-6 py-4 font-medium">Nama</th>               
+                <th className="px-6 py-4 font-medium">Nama</th>              
                 <th className="px-6 py-4 font-medium">Tanggal</th>
                 <th className="px-6 py-4 font-medium">Alasan</th>
                 <th className="px-6 py-4 font-medium">Lampiran</th>
@@ -294,8 +294,7 @@ function Leaves() {
                     <td className="px-6 py-4 text-slate-500">
                       {leave.reason}
                     </td>
-
-                    {/* TOMBOL LIHAT LAMPIRAN */}
+                    
                     <td className="px-6 py-4">
                       {leave.documentUrl ? (
                         <button

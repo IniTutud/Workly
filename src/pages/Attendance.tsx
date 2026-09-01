@@ -14,6 +14,8 @@ type Attendance = {
   status: string;
   photoUrl: string | null;
   rawDate: string;
+  rawClockIn?: string | null;
+  shiftStatus?: string; // Menyimpan status shift asli untuk pengurutan
 };
 
 function Attendance() {
@@ -38,12 +40,15 @@ function Attendance() {
     setLoading(true);
 
     try {
+      // 1. Ambil data karyawan khusus role karyawan
       const { data: employeesData, error: empError } = await supabase
         .from("profiles")
         .select("id, full_name, department")
         .eq("role", "karyawan");
 
       if (empError) throw empError;
+
+      // 2. Ambil data absensi
       const { data: attendanceData, error: attError } = await supabase
         .from("attendances")
         .select(`
@@ -56,79 +61,150 @@ function Attendance() {
           `);
 
       if (attError) throw attError;
-      const attendanceMap = new Map();
 
-      const formattedAttendancePromises = (attendanceData || []).map(async (item: any) => {
-        let fullPhotoUrl = null;
+      // 3. Ambil data jadwal shift karyawan pada tanggal yang sedang dipilih
+      const { data: schedulesData, error: schedError } = await supabase
+        .from("employee_schedules")
+        .select("user_id, date, status")
+        .eq("date", selectedDate);
 
-        if (item.photo_url) {
-          let filePath = item.photo_url;
+      if (schedError) throw schedError;
 
-          if (item.photo_url.includes("/public/attendance_photos/")) {
-            const parts = item.photo_url.split("/public/attendance_photos/");
-            if (parts.length > 1) filePath = parts[1];
-          }
-
-          if (filePath.startsWith("http")) {
-            fullPhotoUrl = filePath;
-          } else {
-            const { data: signedUrlData } = await supabase.storage
-              .from("attendance_photos")
-              .createSignedUrl(filePath, 3600);
-
-            if (signedUrlData) {
-              fullPhotoUrl = signedUrlData.signedUrl;
-            }
-          }
-        }
-
-        const itemDate = item.clock_in ? item.clock_in.split("T")[0] : "";
-
-        const mappedData = {
-          id: item.id,
-          userId: item.user_id,
-          dateFormatted: formatDate(item.clock_in),
-          checkIn: formatTime(item.clock_in),
-          checkOut: formatTime(item.clock_out),
-          status: item.clock_in ? getStatusLabel(item.status) : "Tidak Hadir",
-          photoUrl: fullPhotoUrl,
-          rawDate: itemDate,
-        };
-
-        attendanceMap.set(`${item.user_id}_${itemDate}`, mappedData);
+      // Buat map jadwal untuk pengecekan cepat (user_id -> schedule_status)
+      const scheduleMap = new Map();
+      (schedulesData || []).forEach((sched: any) => {
+        scheduleMap.set(sched.user_id, sched.status); // "working", "off", "leave"
       });
 
-      await Promise.all(formattedAttendancePromises);
+      const attendanceMap = new Map();
 
-      const combinedList: Attendance[] = (employeesData || []).map((emp: any) => {
-        const key = `${emp.id}_${selectedDate}`;
-        const existingRecord = attendanceMap.get(key);
+      (attendanceData || []).forEach((item: any) => {
+        const itemDate = item.clock_in ? item.clock_in.split("T")[0] : "";
+        if (itemDate === selectedDate) {
+          attendanceMap.set(item.user_id, item);
+        }
+      });
 
-        if (existingRecord) {
-          return {
-            id: existingRecord.id,
-            name: emp.full_name,
-            department: emp.department || "-",
-            date: existingRecord.dateFormatted,
-            checkIn: existingRecord.checkIn,
-            checkOut: existingRecord.checkOut,
-            status: existingRecord.status,
-            photoUrl: existingRecord.photoUrl,
-            rawDate: selectedDate,
-          };
-        } else {
-          return {
-            id: `absent_${emp.id}_${selectedDate}`,
+      const combinedList: Attendance[] = [];
+
+      for (const emp of (employeesData || [])) {
+        const shiftStatus = scheduleMap.get(emp.id) || "off"; 
+        const existingRecord = attendanceMap.get(emp.id);
+
+        if (shiftStatus === "off") {
+          combinedList.push({
+            id: `off_${emp.id}_${selectedDate}`,
             name: emp.full_name,
             department: emp.department || "-",
             date: formatDate(selectedDate),
             checkIn: "-",
             checkOut: "-",
-            status: "Tidak Hadir",
+            status: "Off",
             photoUrl: null,
             rawDate: selectedDate,
-          };
+            rawClockIn: null,
+            shiftStatus: "off",
+          });
+        } else if (shiftStatus === "leave") {
+          combinedList.push({
+            id: `leave_${emp.id}_${selectedDate}`,
+            name: emp.full_name,
+            department: emp.department || "-",
+            date: formatDate(selectedDate),
+            checkIn: "-",
+            checkOut: "-",
+            status: "Cuti",
+            photoUrl: null,
+            rawDate: selectedDate,
+            rawClockIn: null,
+            shiftStatus: "leave",
+          });
+        } else {
+          if (existingRecord) {
+            let fullPhotoUrl = null;
+            if (existingRecord.photo_url) {
+              let filePath = existingRecord.photo_url;
+              if (filePath.includes("/public/attendance_photos/")) {
+                const parts = filePath.split("/public/attendance_photos/");
+                if (parts.length > 1) filePath = parts[1];
+              }
+
+              if (filePath.startsWith("http")) {
+                fullPhotoUrl = filePath;
+              } else {
+                const { data: signedUrlData } = await supabase.storage
+                  .from("attendance_photos")
+                  .createSignedUrl(filePath, 3600);
+
+                if (signedUrlData) {
+                  fullPhotoUrl = signedUrlData.signedUrl;
+                }
+              }
+            }
+
+            combinedList.push({
+              id: existingRecord.id,
+              name: emp.full_name,
+              department: emp.department || "-",
+              date: formatDate(existingRecord.clock_in),
+              checkIn: formatTime(existingRecord.clock_in),
+              checkOut: formatTime(existingRecord.clock_out),
+              status: getStatusLabel(existingRecord.status),
+              photoUrl: fullPhotoUrl,
+              rawDate: selectedDate,
+              rawClockIn: existingRecord.clock_in,
+              shiftStatus: "working",
+            });
+          } else {
+            combinedList.push({
+              id: `absent_${emp.id}_${selectedDate}`,
+              name: emp.full_name,
+              department: emp.department || "-",
+              date: formatDate(selectedDate),
+              checkIn: "-",
+              checkOut: "-",
+              status: "Tidak Hadir",
+              photoUrl: null,
+              rawDate: selectedDate,
+              rawClockIn: null,
+              shiftStatus: "working",
+            });
+          }
         }
+      }
+              
+      // LOGIKA PENGURUTAN BARU:
+      // 1. Karyawan "working" di atas, karyawan "off/leave" di bawah.
+      // 2. Untuk kelompok "off/leave": diurutkan berdasarkan abjad nama.
+      // 3. Untuk kelompok "working": 
+      //    - Yang belum clock in ("Tidak Hadir") ditaruh paling atas.
+      //    - Yang sudah clock in diurutkan dari yang paling awal (bawah) ke yang paling telat/akhir (atas).
+      combinedList.sort((a, b) => {
+        const isOffA = a.shiftStatus === "off" || a.shiftStatus === "leave";
+        const isOffB = b.shiftStatus === "off" || b.shiftStatus === "leave";
+
+        // Jika salah satu off/leave dan satunya working
+        if (isOffA && !isOffB) return 1; // Off di bawah
+        if (!isOffA && isOffB) return -1; // Working di atas
+
+        // Jika keduanya off/leave, urutkan berdasarkan abjad nama
+        if (isOffA && isOffB) {
+          return a.name.localeCompare(b.name);
+        }
+
+        // Jika keduanya working:
+        const isAbsentA = a.status === "Tidak Hadir";
+        const isAbsentB = b.status === "Tidak Hadir";
+
+        if (isAbsentA && !isAbsentB) return -1; // Tidak hadir paling atas
+        if (!isAbsentA && isAbsentB) return 1;
+
+        // Berdasarkan waktu clock in (paling awal di bawah, paling akhir/telat di atas)
+        if (a.rawClockIn && b.rawClockIn) {
+          return new Date(b.rawClockIn).getTime() - new Date(a.rawClockIn).getTime();
+        }
+
+        return 0;
       });
 
       setAttendance(combinedList);
@@ -157,7 +233,6 @@ function Attendance() {
     });
   };
 
-
   const getStatusLabel = (status: string | null | undefined) => {
     if (status === "present") return "Hadir";
     if (status === "late") return "Terlambat";
@@ -165,12 +240,7 @@ function Attendance() {
     return "Tidak Hadir";
   };
 
-  const attendanceByDate = attendance.filter((item) => {
-    if (!selectedDate) return true;
-    return item.rawDate === selectedDate;
-  });
-
-  const filteredAttendance = attendanceByDate.filter((item) => {
+  const filteredAttendance = attendance.filter((item) => {
     const matchSearch =
       item.name.toLowerCase().includes(search.toLowerCase()) ||
       item.department.toLowerCase().includes(search.toLowerCase());
@@ -182,20 +252,26 @@ function Attendance() {
     return matchSearch && matchStatus;
   });
 
-  const totalAttendance = attendanceByDate.length;
+  const totalEmployees = attendance.length;
 
-  const totalPresent = attendanceByDate.filter(
+  const totalPresent = attendance.filter(
     (item) => item.status === "Hadir" || item.status === "Terlambat"
   ).length;
 
-  const totalAbsent = attendanceByDate.filter(
+  const totalAbsent = attendance.filter(
     (item) => item.status === "Tidak Hadir"
+  ).length;
+
+  const totalOffOrLeave = attendance.filter(
+    (item) => item.status === "Off" || item.status === "Cuti"
   ).length;
 
   const getFilterLabel = (val: string) => {
     if (val === "Hadir") return "Hadir";
     if (val === "Terlambat") return "Terlambat";
     if (val === "Tidak Hadir") return "Tidak Hadir";
+    if (val === "Off") return "Off";
+    if (val === "Cuti") return "Cuti";
     return "Semua Status";
   };
 
@@ -206,35 +282,36 @@ function Attendance() {
           Rekap Absensi
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Lihat rekap presensi seluruh karyawan
+          Lihat rekap presensi seluruh karyawan berdasarkan jadwal kerja harian
         </p>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Total Karyawan
-          </p>
+          <p className="text-sm text-slate-500">Total Karyawan</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">
-            {totalAttendance}
+            {totalEmployees}
           </p>
         </div>
 
         <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-green-500">
-            Hadir / Terlambat
-          </p>
+          <p className="text-sm text-green-500">Hadir / Terlambat</p>
           <p className="mt-2 text-2xl font-semibold text-green-600">
             {totalPresent}
           </p>
         </div>
 
         <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-red-500">
-            Tidak Hadir
-          </p>
+          <p className="text-sm text-red-500">Tidak Hadir</p>
           <p className="mt-2 text-2xl font-semibold text-red-600">
             {totalAbsent}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-400">Off / Cuti</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-600">
+            {totalOffOrLeave}
           </p>
         </div>
       </div>
@@ -284,7 +361,7 @@ function Attendance() {
                   ></div>
 
                   <div className="absolute right-0 top-full z-50 mt-2 w-full min-w-48 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-                    {["Semua", "Hadir", "Terlambat", "Tidak Hadir"].map((status) => (
+                    {["Semua", "Hadir", "Terlambat", "Tidak Hadir", "Off", "Cuti"].map((status) => (
                       <button
                         key={status}
                         onClick={() => {
@@ -308,9 +385,9 @@ function Attendance() {
       </div>
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="max-h-[65vh] overflow-y-auto scrollbar-thin">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
               <tr>
                 <th className="px-6 py-4 font-medium">Nama</th>
                 <th className="px-6 py-4 font-medium">Foto</th>
@@ -379,12 +456,15 @@ function Attendance() {
 
                     <td className="px-6 py-4">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${item.status === "Hadir"
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          item.status === "Hadir"
                             ? "bg-green-100 text-green-700"
                             : item.status === "Terlambat"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
+                            ? "bg-yellow-100 text-yellow-700"
+                            : item.status === "Off" || item.status === "Cuti"
+                            ? "bg-slate-100 text-slate-600"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
                         {item.status}
                       </span>

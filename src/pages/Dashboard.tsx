@@ -320,17 +320,9 @@ function Dashboard() {
   };
 
   const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Logout error:", error);
-        return;
-      }
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
+    await supabase.auth.signOut();  
+    window.location.replace("/login");
+};
 
   const formatDate = (date: string | undefined) => {
     if (!date) return "-";

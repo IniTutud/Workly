@@ -15,13 +15,18 @@ export default function ProtectedRoute({
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    const checkUser = async () => {
+    let isMounted = true;
+
+    const verifyAccess = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setLoading(false);
+        if (isMounted) {
+          setAllowed(false);
+          setLoading(false);
+        }
         return;
       }
 
@@ -33,20 +38,41 @@ export default function ProtectedRoute({
 
       if (error || !profile) {
         await supabase.auth.signOut();
-        setLoading(false);
+        if (isMounted) {
+          setAllowed(false);
+          setLoading(false);
+        }
         return;
       }
 
       if (requiredRole && profile.role !== requiredRole) {
-        setLoading(false);
+        if (isMounted) {
+          setAllowed(false);
+          setLoading(false);
+        }
         return;
       }
 
-      setAllowed(true);
-      setLoading(false);
+      if (isMounted) {
+        setAllowed(true);
+        setLoading(false);
+      }
     };
 
-    checkUser();
+    verifyAccess();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setAllowed(false);
+      } else {
+        verifyAccess();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [requiredRole]);
 
   if (loading) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Copy, Check } from "lucide-react";
 
 type ScheduleStatus = "working" | "off" | "leave";
 
@@ -23,6 +23,9 @@ function Shift() {
   const [saving, setSaving] = useState(false);
 
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [search, setSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("Semua");
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
     fetchEmployees();
@@ -79,7 +82,14 @@ function Shift() {
         return;
       }
 
-      setEmployees(data || []);
+      const empList = data || [];
+      setEmployees(empList);
+
+      // Ambil list unik departemen untuk filter
+      const uniqueDepts = Array.from(
+        new Set(empList.map((e) => e.department).filter(Boolean))
+      ) as string[];
+      setDepartments(uniqueDepts);
     } catch (error) {
       console.error("ERROR:", error);
       alert("Terjadi kesalahan saat mengambil data karyawan.");
@@ -133,14 +143,14 @@ function Shift() {
     const currentStatus = getSchedule(userId, date);
     
     if (currentStatus === "leave") {
-      alert("Jadwal leave tidak dapat diubah secara manual.");
+      alert("Jadwal cuti tidak dapat diubah secara manual.");
       return;
     }
 
     setSaving(true);
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("employee_schedules")
         .upsert(
           {
@@ -151,16 +161,13 @@ function Shift() {
           {
             onConflict: "user_id,date",
           }
-        )
-        .select();
+        );
 
       if (error) {
         console.error("UPDATE SHIFT ERROR:", error);
         alert(`Gagal mengubah shift: ${error.message}`);
         return;
       }
-
-      console.log("Shift berhasil diubah:", data);
 
       await fetchSchedules();
     } catch (error) {
@@ -171,42 +178,73 @@ function Shift() {
     }
   };
 
+  // Fitur Cepat: Set Semua Karyawan Working/Off di Hari Tertentu
+  const handleSetDayMass = async (dateStr: string, status: "working" | "off") => {
+    const confirmed = window.confirm(
+      `Ubah semua shift karyawan pada tanggal ${dateStr} menjadi ${status === "working" ? "Working" : "Off"}?`
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      const upsertData = employees.map((emp) => {
+        // Cek apakah hari itu cuti, jika cuti jangan ditimpa
+        const current = getSchedule(emp.id, dateStr);
+        if (current === "leave") {
+          return { user_id: emp.id, date: dateStr, status: "leave" };
+        }
+        return { user_id: emp.id, date: dateStr, status };
+      });
+
+      const { error } = await supabase
+        .from("employee_schedules")
+        .upsert(upsertData, { onConflict: "user_id,date" });
+
+      if (error) throw error;
+      await fetchSchedules();
+    } catch (error: any) {
+      console.error("Mass shift error:", error);
+      alert(`Gagal mengubah shift massal: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredEmployees = employees.filter((emp) => {
+    const matchName = emp.full_name.toLowerCase().includes(search.toLowerCase());
+    const matchDept =
+      selectedDepartment === "Semua" ? true : emp.department === selectedDepartment;
+    return matchName && matchDept;
+  });
+
   const getStatusLabel = (status: ScheduleStatus) => {
     switch (status) {
-        case "working":
+      case "working":
         return "Working";
-
-        case "off":
+      case "off":
         return "Off";
-
-        case "leave":
+      case "leave":
         return "Cuti";
-
-        default:
+      default:
         return "-";
     }
-    };
+  };
 
   const getStatusClass = (status: ScheduleStatus) => {
     switch (status) {
       case "working":
         return "bg-green-100 text-green-700";
-
       case "off":
         return "bg-slate-100 text-slate-600";
-
       case "leave":
         return "bg-yellow-100 text-yellow-700";
-
       default:
         return "bg-slate-100 text-slate-600";
     }
   };
 
   const getDayName = (date: Date) => {
-    return date.toLocaleDateString("id-ID", {
-      weekday: "short",
-    });
+    return date.toLocaleDateString("id-ID", { weekday: "short" });
   };
 
   const getDateNumber = (date: Date) => {
@@ -235,14 +273,12 @@ function Shift() {
   const goPreviousWeek = () => {
     const newDate = new Date(currentWeek);
     newDate.setDate(newDate.getDate() - 7);
-
     setCurrentWeek(newDate);
   };
 
   const goNextWeek = () => {
     const newDate = new Date(currentWeek);
     newDate.setDate(newDate.getDate() + 7);
-
     setCurrentWeek(newDate);
   };
 
@@ -257,9 +293,8 @@ function Shift() {
           <h1 className="text-2xl font-semibold text-slate-900">
             Pembagian Shift
           </h1>
-
           <p className="mt-1 text-sm text-slate-500">
-            Atur jadwal kerja karyawan setiap hari
+            Atur jadwal kerja karyawan setiap hari dengan mudah
           </p>
         </div>
       </div>
@@ -267,10 +302,7 @@ function Shift() {
       <div className="mb-6 rounded-xl bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500">
-              Minggu
-            </p>
-
+            <p className="text-sm font-medium text-slate-500">Periode Minggu</p>
             <p className="mt-1 text-lg font-semibold text-slate-900">
               {formatWeekRange()}
             </p>
@@ -303,26 +335,58 @@ function Shift() {
         </div>
       </div>
 
+      {/* Bar Pencarian dan Filter Departemen agar Easy Access */}
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full md:w-80">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama karyawan..."
+            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+          <button
+            onClick={() => setSelectedDepartment("Semua")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              selectedDepartment === "Semua"
+                ? "bg-blue-600 text-white"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Semua Departemen
+          </button>
+          {departments.map((dept) => (
+            <button
+              key={dept}
+              onClick={() => setSelectedDepartment(dept)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
+                selectedDepartment === dept
+                  ? "bg-blue-600 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {dept}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-5 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-green-500"></span>
-          <span className="text-sm text-slate-600">
-            Working
-          </span>
+          <span className="text-sm text-slate-600">Working</span>
         </div>
-
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-slate-400"></span>
-          <span className="text-sm text-slate-600">
-            Off
-          </span>
+          <span className="text-sm text-slate-600">Off</span>
         </div>
-
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-yellow-500"></span>
-          <span className="text-sm text-slate-600">
-            Cuti
-          </span>
+          <span className="text-sm text-slate-600">Cuti</span>
         </div>
       </div>
 
@@ -334,53 +398,60 @@ function Shift() {
                 Karyawan
               </th>
 
-              {weekDates.map((date) => (
-                <th
-                  key={formatDate(date)}
-                  className="px-3 py-4 text-center font-medium"
-                >
-                  <div>
-                    {getDayName(date)}
-                  </div>
-
-                  <div className="mt-1 text-xs text-slate-400">
-                    {getDateNumber(date)}
-                  </div>
-                </th>
-              ))}
+              {weekDates.map((date) => {
+                const dateString = formatDate(date);
+                return (
+                  <th
+                    key={dateString}
+                    className="px-3 py-4 text-center font-medium"
+                  >
+                    <div>{getDayName(date)}</div>
+                    <div className="mt-1 text-xs text-slate-400">
+                      {getDateNumber(date)}
+                    </div>
+                    {/* Tombol Aksi Cepat per Kolom Hari */}
+                    <div className="mt-2 flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => handleSetDayMass(dateString, "working")}
+                        title="Set semua Working hari ini"
+                        className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] text-green-600 hover:bg-green-100"
+                      >
+                        All W
+                      </button>
+                      <button
+                        onClick={() => handleSetDayMass(dateString, "off")}
+                        title="Set semua Off hari ini"
+                        className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 hover:bg-slate-200"
+                      >
+                        All O
+                      </button>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td
-                  colSpan={8}
-                  className="px-6 py-10 text-center text-slate-500"
-                >
+                <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
                   Memuat jadwal...
                 </td>
               </tr>
-            ) : employees.length === 0 ? (
+            ) : filteredEmployees.length === 0 ? (
               <tr>
-                <td
-                  colSpan={8}
-                  className="px-6 py-10 text-center text-slate-500"
-                >
-                  Belum ada data karyawan.
+                <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
+                  Data karyawan tidak ditemukan.
                 </td>
               </tr>
             ) : (
-              employees.map((employee) => (
-                <tr
-                  key={employee.id}
-                  className="hover:bg-slate-50"
-                >
+              filteredEmployees.map((employee) => (
+                <tr key={employee.id} className="hover:bg-slate-50">
                   <td className="sticky left-0 z-10 bg-white px-5 py-4">
                     <div className="font-medium text-slate-900">
                       {employee.full_name}
                     </div>
-
                     <div className="mt-1 text-xs text-slate-400">
                       {employee.department || "-"}
                     </div>
@@ -388,18 +459,11 @@ function Shift() {
 
                   {weekDates.map((date) => {
                     const dateString = formatDate(date);
-                    const status = getSchedule(
-                      employee.id,
-                      dateString
-                    );
-
+                    const status = getSchedule(employee.id, dateString);
                     const isLeave = status === "leave";
 
                     return (
-                      <td
-                        key={dateString}
-                        className="px-3 py-4 text-center"
-                      >
+                      <td key={dateString} className="px-3 py-4 text-center">
                         <div className="flex justify-center">
                           {isLeave ? (
                             <span
@@ -417,22 +481,15 @@ function Shift() {
                                 handleStatusChange(
                                   employee.id,
                                   dateString,
-                                  e.target.value as
-                                    | "working"
-                                    | "off"
+                                  e.target.value as "working" | "off"
                                 )
                               }
                               className={`cursor-pointer rounded-full border-0 px-3 py-1.5 text-xs font-medium outline-none ${getStatusClass(
                                 status
                               )}`}
                             >
-                              <option value="working">
-                                Working
-                              </option>
-
-                              <option value="off">
-                                Off
-                              </option>
+                              <option value="working">Working</option>
+                              <option value="off">Off</option>
                             </select>
                           )}
                         </div>

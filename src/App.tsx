@@ -11,6 +11,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AttendanceMonthly from "./pages/AttendanceMonthly";
 import Shift from "./pages/Shift";
 import SwapSchedule from "./pages/SwapSchedule";
+import Payroll from "./pages/Payroll";
 
 export default function App() {
   return (
@@ -93,6 +94,17 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <AdminLayout>
                 <SwapSchedule />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/payroll"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout>
+                <Payroll />
               </AdminLayout>
             </ProtectedRoute>
           }
