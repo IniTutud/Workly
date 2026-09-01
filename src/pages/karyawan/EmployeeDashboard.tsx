@@ -5,6 +5,7 @@ import Profile from './Profile';
 import Presensi from './Presensi';
 import PengajuanCuti from './PengajuanCuti';
 import Rekap from "./Rekap";
+import JadwalShift from './JadwalShift';
 import { 
   User, 
   Clock, 
@@ -13,7 +14,8 @@ import {
   ClipboardList, 
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 
 const EmployeeDashboard: React.FC = () => {
@@ -74,6 +76,7 @@ const EmployeeDashboard: React.FC = () => {
     { id: 'presensi', label: 'Presensi', icon: Clock },
     { id: 'leave', label: 'Pengajuan Cuti', icon: CalendarDays },
     { id: 'rekap', label: 'Rekap Absensi', icon: ClipboardList },
+    { id: 'jadwal', label: 'Jadwal & Tukar Shift', icon: Calendar },
     
   ];
 
@@ -229,7 +232,7 @@ const EmployeeDashboard: React.FC = () => {
           </div>
         </header>
 
-        <div className={`flex-1 flex w-full z-10 ${(activeMenu === 'profile' || activeMenu === 'presensi' || activeMenu === 'rekap' ||   activeMenu === 'leave') ? 'flex-col overflow-y-auto pb-24 p-6' : 'items-center justify-center p-6'}`}>
+        <div className={`flex-1 flex w-full z-10 ${(activeMenu === 'profile' || activeMenu === 'presensi' || activeMenu === 'rekap' ||   activeMenu === 'leave' || activeMenu === 'jadwal') ? 'flex-col overflow-y-auto pb-24 p-6' : 'items-center justify-center p-6'}`}>
          {activeMenu === 'profile' ? (
             <Profile />
           ) : activeMenu === 'presensi' ? (
@@ -238,6 +241,8 @@ const EmployeeDashboard: React.FC = () => {
             <Rekap />
           ) : activeMenu === 'leave' ? (
             <PengajuanCuti />
+          ) : activeMenu === 'jadwal' ? (
+            <JadwalShift />
           ) : (
             <div className="max-w-2xl w-full">
               <div className="bg-white/60 backdrop-blur-xl border border-white/80 p-12 rounded-3xl shadow-xl shadow-slate-200/50 text-center transform hover:scale-[1.02] transition-transform duration-500 group">
