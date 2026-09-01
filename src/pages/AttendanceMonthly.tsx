@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
+import { 
+    ChevronDown,
+} from "lucide-react";
 
 type EmployeeSummary = {
     id: string;
@@ -38,6 +41,11 @@ function AttendanceMonthly() {
     const [search, setSearch] = useState("");
 
     const currentDate = new Date();
+
+    const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
+    const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
+
+    const yearOptions = [2025, 2026, 2027, 2028, 2029, 2030];
 
     const [selectedMonth, setSelectedMonth] = useState(
         currentDate.getMonth()
@@ -266,6 +274,11 @@ function AttendanceMonthly() {
         "Desember",
     ];
 
+    // Filter karyawan berdasarkan input pencarian nama
+    const filteredEmployees = employees.filter((employee) =>
+        employee.name.toLowerCase().includes(search.toLowerCase())
+    );
+
     const totalPresent = employees.reduce(
         (total, employee) => total + employee.present,
         0
@@ -297,43 +310,113 @@ function AttendanceMonthly() {
                 </p>
             </div>
 
-            <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-slate-700">
-                            Periode Rekap
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                            Pilih bulan dan tahun
-                        </p>
-                    </div>
+            {/* Filter Periode & Search Bar */}
+            <div className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p className="text-sm font-medium text-slate-700">
+                        Periode Rekap
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                        Pilih bulan dan tahun
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    {/* Input Search Karyawan */}
+                    <input
+                        type="text"
+                        placeholder="Cari karyawan..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 md:w-64"
+                    />
 
                     <div className="flex gap-3">
-                        <select
-                            value={selectedMonth}
-                            onChange={(e) =>
-                                setSelectedMonth(Number(e.target.value))
-                            }
-                            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500"
-                        >
-                            {monthNames.map((month, index) => (
-                                <option key={month} value={index}>
-                                    {month}
-                                </option>
-                            ))}
-                        </select>
+                        {/* Dropdown Bulan */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsMonthDropdownOpen(!isMonthDropdownOpen);
+                                    setIsYearDropdownOpen(false);
+                                }}
+                                className="flex items-center justify-between gap-4 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition-all hover:bg-slate-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            >
+                                <span>{monthNames[selectedMonth]}</span>
+                                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isMonthDropdownOpen ? "rotate-180" : ""}`} />
+                            </button>
 
-                        <select
-                            value={selectedYear}
-                            onChange={(e) =>
-                                setSelectedYear(Number(e.target.value))
-                            }
-                            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500"
-                        >
-                            <option value={2025}>2025</option>
-                            <option value={2026}>2026</option>
-                            <option value={2027}>2027</option>
-                        </select>
+                            {isMonthDropdownOpen && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setIsMonthDropdownOpen(false)}
+                                    ></div>
+                                    <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-44 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                                        {monthNames.map((month, index) => (
+                                            <button
+                                                key={month}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedMonth(index);
+                                                    setIsMonthDropdownOpen(false);
+                                                }}
+                                                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                                    selectedMonth === index
+                                                        ? "bg-blue-50 font-medium text-blue-700"
+                                                        : "text-slate-600 hover:bg-slate-50"
+                                                }`}
+                                            >
+                                                {month}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        
+                        {/* Dropdown Tahun */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsYearDropdownOpen(!isYearDropdownOpen);
+                                    setIsMonthDropdownOpen(false);
+                                }}
+                                className="flex items-center justify-between gap-6 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition-all hover:bg-slate-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            >
+                                <span>{selectedYear}</span>
+                                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isYearDropdownOpen ? "rotate-180" : ""}`} />
+                            </button>
+
+                            {isYearDropdownOpen && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setIsYearDropdownOpen(false)}
+                                    ></div>
+                                    <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                                        {yearOptions.map((year) => (
+                                            <button
+                                                key={year}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedYear(year);
+                                                    setIsYearDropdownOpen(false);
+                                                }}
+                                                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                                    selectedYear === year
+                                                        ? "bg-blue-50 font-medium text-blue-700"
+                                                        : "text-slate-600 hover:bg-slate-50"
+                                                }`}
+                                            >
+                                                {year}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -397,17 +480,17 @@ function AttendanceMonthly() {
                                         Memuat rekap bulanan...
                                     </td>
                                 </tr>
-                            ) : employees.length === 0 ? (
+                            ) : filteredEmployees.length === 0 ? (
                                 <tr>
                                     <td
                                         colSpan={7}
                                         className="px-6 py-10 text-center text-slate-500"
                                     >
-                                        Belum ada data karyawan.
+                                        Karyawan tidak ditemukan.
                                     </td>
                                 </tr>
                             ) : (
-                                employees.map((employee) => (
+                                filteredEmployees.map((employee) => (
                                     <tr
                                         key={employee.id}
                                         className="hover:bg-slate-50"

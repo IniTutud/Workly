@@ -9,6 +9,8 @@ import Login from "./pages/Login";
 import EmployeeDashboard from "./pages/karyawan/EmployeeDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AttendanceMonthly from "./pages/AttendanceMonthly";
+import Shift from "./pages/Shift";
+import SwapSchedule from "./pages/SwapSchedule";
 
 export default function App() {
   return (
@@ -69,6 +71,28 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <AdminLayout>
                 <AttendanceMonthly />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/shift"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout>
+                <Shift />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/swapschedule"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout>
+                <SwapSchedule />
               </AdminLayout>
             </ProtectedRoute>
           }

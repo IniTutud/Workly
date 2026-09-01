@@ -34,22 +34,19 @@ function Leaves() {
 
   const fetchLeaves = async () => {
     setLoading(true);
+    
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("id, full_name");
 
+    const profileMap = new Map();
+    if (profilesData) {
+      profilesData.forEach((p: any) => profileMap.set(p.id, p.full_name));
+    }
+    
     const { data, error } = await supabase
       .from("leaves")
-      .select(`
-        id,
-        user_id,
-        start_date,
-        end_date,
-        reason,
-        status,
-        created_at,
-        document_url,
-        profiles (
-          full_name
-        )
-      `)
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -64,7 +61,7 @@ function Leaves() {
 
       if (item.document_url) {
         let filePath = item.document_url;
-                
+              
         if (filePath.includes("/public/leave_documents/")) {
           const parts = filePath.split("/public/leave_documents/");
           if (parts.length > 1) {
@@ -74,9 +71,9 @@ function Leaves() {
 
         if (filePath.startsWith("http")) {
           fullDocumentUrl = filePath;
-        } else {        
+        } else {                  
           const { data: signedUrlData } = await supabase.storage
-            .from("leave_documents")
+            .from("leave_documents") 
             .createSignedUrl(filePath, 3600); 
 
           if (signedUrlData) {
@@ -84,10 +81,16 @@ function Leaves() {
           }
         }
       }
+      
+      const employeeName = 
+        profileMap.get(item.user_id) || 
+        profileMap.get(item.employee_id) || 
+        item.name || 
+        "Unknown";
 
       return {
         id: item.id,
-        name: item.profiles?.full_name || "Unknown",
+        name: employeeName,
         startDate: formatDate(item.start_date),
         endDate: formatDate(item.end_date),
         reason: item.reason || "-",
@@ -128,22 +131,36 @@ function Leaves() {
 
     if (!confirmed) return;
 
-    const { error } = await supabase
-      .from("leaves")
-      .update({ status })
-      .eq("id", id);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "approve-leaves",
+        {
+          body: {
+            leave_id: id,
+            action: status === "approved" ? "APPROVED" : "REJECTED",
+          },
+        }
+      );
 
-    if (error) {
-      console.error("Gagal mengubah status cuti:", error);
-      alert("Gagal mengubah status pengajuan cuti.");
-      return;
+      if (error) {
+        console.error("EDGE FUNCTION ERROR:", error);
+        alert(`Gagal memproses pengajuan cuti: ${error.message}`);
+        return;
+      }
+
+      console.log("Edge Function berhasil:", data);
+
+      await fetchLeaves();
+
+      alert(
+        status === "approved"
+          ? "Pengajuan cuti berhasil disetujui."
+          : "Pengajuan cuti berhasil ditolak."
+      );
+    } catch (error: any) {
+      console.error("ERROR:", error);
+      alert(`Terjadi kesalahan: ${error.message}`);
     }
-
-    setLeaves((currentLeaves) =>
-      currentLeaves.map((leave) =>
-        leave.id === id ? { ...leave, status } : leave
-      )
-    );
   };
   
   const filteredLeaves = leaves.filter((leave) => {
@@ -341,8 +358,7 @@ function Leaves() {
           </table>
         </div>
       </div>
-
-      {/* Modal Preview Lampiran / Foto */}
+      
       {selectedImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"

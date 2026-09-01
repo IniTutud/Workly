@@ -271,18 +271,27 @@ function Employees() {
     if (!confirmed) return;
 
     try {
+      // Mengirim ID melalui query parameter di URL sesuai ekspektasi server function
       const { data, error } = await supabase.functions.invoke(
-        "delete-user",
+        `delete-user?id=${encodeURIComponent(id)}`,
         {
-          body: {
-            user_id: id,
-          },
+          method: "DELETE",
         }
       );
 
       if (error) {
         console.error("Delete user error:", error);
-        alert("Gagal menghapus karyawan.");
+        
+        let serverMessage = error.message;
+        if (error.context) {
+          try {
+            const body = await error.context.json();
+            serverMessage = body.error || body.message || serverMessage;
+          } catch (e) {            
+          }
+        }
+
+        alert(`Gagal menghapus karyawan: ${serverMessage}`);
         return;
       }
 
