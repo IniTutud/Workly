@@ -236,13 +236,28 @@ const Presensi: React.FC = () => {
       const photoUrl = await uploadPhoto(selectedFile);
       if (!photoUrl) throw new Error("Gagal mendapatkan URL foto");
 
+      const now = new Date();
+      
+      const limitHour = 9;
+      const limitMinute = 0;
+
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      const isLate = 
+        currentHour > limitHour || 
+        (currentHour === limitHour && currentMinute > limitMinute);
+      
+      const attendanceStatus = isLate ? 'late' : 'present';
+      // ----------------------------------------
+
       const { data, error } = await supabase
         .from('attendances')
         .insert({
           user_id: user.id,
-          clock_in: new Date().toISOString(),
+          clock_in: now.toISOString(),
           photo_url: photoUrl,
-          status: 'present'
+          status: attendanceStatus
         })
         .select()
         .single();
@@ -251,7 +266,14 @@ const Presensi: React.FC = () => {
 
       setAttendanceId(data.id);
       setStatusAbsen('sudah_masuk');
-      alert('Berhasil Clock In!');
+      
+      // Berikan informasi notifikasi yang jelas ke user
+      if (isLate) {
+        alert('Clock In berhasil, namun Anda tercatat TERLAMBAT.');
+      } else {
+        alert('Berhasil Clock In (Tepat Waktu)!');
+      }
+
       setSelectedFile(null);
       setPreviewUrl(null);
       fetchAttendanceHistory();
