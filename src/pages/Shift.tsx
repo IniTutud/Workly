@@ -334,8 +334,7 @@ function Shift() {
           </div>
         </div>
       </div>
-
-      {/* Bar Pencarian dan Filter Departemen agar Easy Access */}
+      
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="relative w-full md:w-80">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -409,7 +408,7 @@ function Shift() {
                     <div className="mt-1 text-xs text-slate-400">
                       {getDateNumber(date)}
                     </div>
-                    {/* Tombol Aksi Cepat per Kolom Hari */}
+                    
                     <div className="mt-2 flex items-center justify-center gap-1">
                       <button
                         onClick={() => handleSetDayMass(dateString, "working")}
