@@ -6,7 +6,7 @@ import {
   ChevronDown
 } from "lucide-react";
 
-type SwapStatus = "pending" | "approved" | "rejected";
+type SwapStatus = "pending_employee_approval" | "pending_admin_approval" | "approved" | "rejected_by_employee" | "rejected_by_admin" | "pending";
 
 type SwapRequest = {
   id: string;
@@ -129,33 +129,38 @@ function SwapSchedule() {
     setProcessingId(requestId);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "swap-approval",
-        {
-          body: {
-            swap_request_id: requestId,
-            action,
-          },
-        }
-      );
+      const newStatus = action === "APPROVED" ? "approved" : "rejected_by_admin";
 
-      if (error) {
-        console.error("EDGE FUNCTION ERROR:", error);
-        alert(`Gagal memproses pengajuan: ${error.message}`);
+      // Melakukan UPDATE ke Supabase langsung dari frontend
+      const { error: updateError } = await supabase
+        .from("shift_swap_requests")
+        .update({ status: newStatus })
+        .eq("id", requestId);
+
+      if (updateError) {
+        console.error("Gagal update status:", updateError);
+        alert(`Gagal memproses pengajuan: ${updateError.message}`);
         return;
       }
 
-      console.log("Swap approval response:", data);
-      
-      const newStatus: SwapStatus =
-        action === "APPROVED" ? "approved" : "rejected";
+      // Opsional: Jika fungsi edge digunakan untuk menukar data tabel jadwal (inserts),
+      // tetap panggil fungsinya jika disetujui (agar jadwal ikut berubah)
+      if (action === "APPROVED") {
+        const { error: edgeError } = await supabase.functions.invoke("swap-approval", {
+          body: { swap_request_id: requestId, action },
+        });
+        if (edgeError) {
+          console.error("EDGE FUNCTION ERROR:", edgeError);
+          // Kita tidak return di sini agar UI tetap terupdate karena status sudah berubah
+        }
+      }
 
       setRequests((currentRequests) =>
         currentRequests.map((item) =>
           item.id === requestId
             ? {
                 ...item,
-                status: newStatus,
+                status: newStatus as SwapStatus,
               }
             : item
         )
@@ -175,23 +180,20 @@ function SwapSchedule() {
   };
 
   const getStatusLabel = (status: string) => {
-    if (status === "pending") return "Pending";
-    if (status === "approved") return "Approved";
-    if (status === "rejected") return "Rejected";
-
+    if (status === "pending" || status === "pending_admin_approval") return "Menunggu Admin";
+    if (status === "pending_employee_approval") return "Menunggu Rekan";
+    if (status === "approved") return "Disetujui";
+    if (status === "rejected_by_admin") return "Ditolak Admin";
+    if (status === "rejected_by_employee") return "Ditolak Rekan";
     return status;
   };
 
-  const getStatusClass = (status: SwapStatus) => {
-    if (status === "pending") {
-      return "bg-yellow-100 text-yellow-700";
-    }
-
-    if (status === "approved") {
-      return "bg-green-100 text-green-700";
-    }
-
-    return "bg-red-100 text-red-700";
+  const getStatusClass = (status: string) => {
+    if (status === "pending" || status === "pending_admin_approval") return "bg-blue-100 text-blue-700";
+    if (status === "pending_employee_approval") return "bg-yellow-100 text-yellow-700";
+    if (status === "approved") return "bg-green-100 text-green-700";
+    if (status === "rejected_by_admin" || status === "rejected_by_employee") return "bg-red-100 text-red-700";
+    return "bg-slate-100 text-slate-700";
   };
 
   const filteredRequests = requests.filter((request) => {
@@ -253,7 +255,7 @@ function SwapSchedule() {
               />
 
               <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-                {["Semua", "pending", "approved", "rejected"].map(
+                {["Semua", "pending_admin_approval", "pending_employee_approval", "approved", "rejected_by_admin", "rejected_by_employee"].map(
                   (status) => (
                     <button
                       key={status}
@@ -399,7 +401,7 @@ function SwapSchedule() {
 
                     {/* Action */}
                     <td className="px-6 py-4 text-right">
-                      {request.status === "pending" ? (
+                      {request.status === "pending_admin_approval" ? (
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() =>
@@ -429,9 +431,13 @@ function SwapSchedule() {
                             <X size={16} />
                           </button>
                         </div>
-                      ) : (
+                      ) : request.status === "approved" || request.status === "rejected_by_admin" ? (
                         <span className="text-xs text-slate-400">
                           Selesai
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">
+                          -
                         </span>
                       )}
                     </td>

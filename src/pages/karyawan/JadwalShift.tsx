@@ -289,6 +289,7 @@ export default function JadwalShift() {
           target_user_id: formData.target_user_id,
           date_from: formData.date_from,
           date_to: formData.date_to,
+          status: 'pending_employee_approval'
         },
       ]);
       
@@ -305,7 +306,11 @@ export default function JadwalShift() {
   };
 
   const handleResponseSwap = async (swapId: string, approved: boolean) => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      alert("Sesi pengguna tidak valid, silakan login ulang.");
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('shift_swap_requests')
@@ -314,6 +319,7 @@ export default function JadwalShift() {
         
       if (error) throw error; 
       
+      alert(approved ? "Berhasil menerima pengajuan tukar shift!" : "Pengajuan tukar shift ditolak.");
       await fetchSwaps();
     } catch (err: any) {
       console.error('Error updating swap:', err);
