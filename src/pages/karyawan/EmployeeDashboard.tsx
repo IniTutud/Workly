@@ -6,6 +6,7 @@ import Presensi from './Presensi';
 import PengajuanCuti from './PengajuanCuti';
 import Rekap from "./Rekap";
 import JadwalShift from './JadwalShift';
+import GajiSummary from './GajiSummary';
 import { 
   User, 
   Clock, 
@@ -15,7 +16,8 @@ import {
   Menu,
   X,
   ChevronRight,
-  Calendar
+  Calendar,
+  Wallet
 } from 'lucide-react';
 
 const EmployeeDashboard: React.FC = () => {
@@ -77,7 +79,7 @@ const EmployeeDashboard: React.FC = () => {
     { id: 'leave', label: 'Pengajuan Cuti', icon: CalendarDays },
     { id: 'rekap', label: 'Rekap Absensi', icon: ClipboardList },
     { id: 'jadwal', label: 'Jadwal & Tukar Shift', icon: Calendar },
-    
+    { id: 'gaji', label: 'Gaji', icon: Wallet },
   ];
 
   return (
@@ -232,7 +234,7 @@ const EmployeeDashboard: React.FC = () => {
           </div>
         </header>
 
-        <div className={`flex-1 flex w-full z-10 ${(activeMenu === 'profile' || activeMenu === 'presensi' || activeMenu === 'rekap' ||   activeMenu === 'leave' || activeMenu === 'jadwal') ? 'flex-col overflow-y-auto pb-24 p-6' : 'items-center justify-center p-6'}`}>
+        <div className={`flex-1 flex w-full z-10 ${(activeMenu === 'profile' || activeMenu === 'presensi' || activeMenu === 'rekap' ||   activeMenu === 'leave' || activeMenu === 'jadwal' || activeMenu === 'gaji') ? 'flex-col overflow-y-auto pb-24 p-6' : 'items-center justify-center p-6'}`}>
          {activeMenu === 'profile' ? (
             <Profile />
           ) : activeMenu === 'presensi' ? (
@@ -243,6 +245,10 @@ const EmployeeDashboard: React.FC = () => {
             <PengajuanCuti />
           ) : activeMenu === 'jadwal' ? (
             <JadwalShift />
+          ) : activeMenu === 'gaji' ? (
+            <div className="w-full max-w-[1400px] mx-auto">
+              <GajiSummary />
+            </div>
           ) : (
             <div className="max-w-2xl w-full">
               <div className="bg-white/60 backdrop-blur-xl border border-white/80 p-12 rounded-3xl shadow-xl shadow-slate-200/50 text-center transform hover:scale-[1.02] transition-transform duration-500 group">
