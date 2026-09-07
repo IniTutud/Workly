@@ -11,6 +11,7 @@ import {
   ChevronDown,
   BriefcaseBusiness,
   Receipt,
+  CheckSquare,
 } from "lucide-react";
 
 function Sidebar() {
@@ -192,6 +193,20 @@ function Sidebar() {
           >
             <Receipt className="h-5 w-5" />
             Penggajian
+          </NavLink>
+
+          <NavLink
+            to="/admin/tasks"
+            className={({ isActive }) =>
+              `flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 transition ${
+                isActive
+                  ? "bg-cyan-500 text-white"
+                  : "text-white hover:bg-blue-800"
+              }`
+            }
+          >
+            <CheckSquare className="h-5 w-5" />
+            Tugas & Review
           </NavLink>
 
         </nav>
