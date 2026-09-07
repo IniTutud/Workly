@@ -12,6 +12,7 @@ import AttendanceMonthly from "./pages/AttendanceMonthly";
 import Shift from "./pages/Shift";
 import SwapSchedule from "./pages/SwapSchedule";
 import Payroll from "./pages/Payroll";
+import Tasks from "./pages/Tasks";
 
 export default function App() {
   return (
@@ -105,6 +106,17 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <AdminLayout>
                 <Payroll />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/tasks"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout>
+                <Tasks />
               </AdminLayout>
             </ProtectedRoute>
           }

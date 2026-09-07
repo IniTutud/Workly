@@ -353,32 +353,7 @@ function Attendance() {
                 <ChevronDown size={18} className={`text-slate-400 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
               </button>
 
-              {isDropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setIsDropdownOpen(false)}
-                  ></div>
-
-                  <div className="absolute right-0 top-full z-50 mt-2 w-full min-w-48 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-                    {["Semua", "Hadir", "Terlambat", "Tidak Hadir", "Off", "Cuti"].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          setStatusFilter(status);
-                          setIsDropdownOpen(false);
-                        }}
-                        className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${statusFilter === status
-                            ? "bg-blue-50 text-blue-700 font-medium"
-                            : "text-slate-600 hover:bg-slate-100"
-                          }`}
-                      >
-                        {getFilterLabel(status)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              c
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ import {
   CheckCircle,
   CalendarDays,
   Users,
+  Pencil,
 } from "lucide-react";
 
 type PayrollStatus = "pending" | "paid";
@@ -47,7 +48,7 @@ type CustomDropdownProps = {
   isOpen: boolean;
   setIsOpen: (value: boolean) => void;
   onChange: (value: string) => void;
-  searchable?: boolean; // Tambahan properti opsional untuk mengaktifkan search di dropdown
+  searchable?: boolean;
 };
 
 function CustomDropdown({
@@ -84,7 +85,7 @@ function CustomDropdown({
         type="button"
         onClick={() => {
           setIsOpen(!isOpen);
-          setDropdownSearch(""); // Reset search saat dropdown dibuka
+          setDropdownSearch("");
         }}
         className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition-all hover:bg-slate-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
       >
@@ -173,16 +174,24 @@ function Payroll() {
   );
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // State filter status baru
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const [showForm, setShowForm] = useState(false);
   const [selectedPayroll, setSelectedPayroll] =
     useState<Payroll | null>(null);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPayrollId, setEditPayrollId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    basic_salary: "",
+    allowance: "",
+    deduction: "",
+  });
+
   const [isMonthOpen, setIsMonthOpen] = useState(false);
   const [isYearOpen, setIsYearOpen] = useState(false);
   const [isEmployeeOpen, setIsEmployeeOpen] = useState(false);
-  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false); // State dropdown filter status
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     user_id: "",
@@ -225,6 +234,15 @@ function Payroll() {
     { label: "Belum Dibayar (Pending)", value: "pending" },
     { label: "Sudah Dibayar (Paid)", value: "paid" },
   ];
+
+  const handleNumericInput = (val: string) => {
+    if (val === "") return "";
+    let clean = val.replace(/[^0-9]/g, "");
+    if (clean.length > 1 && clean.startsWith("0")) {
+      clean = clean.replace(/^0+/, "");
+    }
+    return clean;
+  };
 
   const fetchProfiles = async () => {
     const { data, error } = await supabase
@@ -331,17 +349,24 @@ function Payroll() {
     );
   };
 
-  // Filter pencarian nama karyawan dan filter status
-  const filteredPayrolls = payrolls.filter((payroll) => {
-    const matchSearch = payroll.employee_name
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    
-    const matchStatus =
-      statusFilter === "all" ? true : payroll.status === statusFilter;
+  // Filter dan Sort Data (Status 'pending' ditaruh di atas, 'paid' ditaruh di bawah)
+  const filteredPayrolls = payrolls
+    .filter((payroll) => {
+      const matchSearch = payroll.employee_name
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      
+      const matchStatus =
+        statusFilter === "all" ? true : payroll.status === statusFilter;
 
-    return matchSearch && matchStatus;
-  });
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (a.status === b.status) return 0;
+      // Jika 'a' adalah pending dan 'b' adalah paid, 'a' didahulukan (-1)
+      if (a.status === "pending" && b.status === "paid") return -1;
+      return 1;
+    });
 
   const handleGenerateBulkPayroll = async () => {
     const confirmed = window.confirm(
@@ -427,18 +452,37 @@ function Payroll() {
     }
 
     alert("Data penggajian berhasil ditambahkan.");
-
     setShowForm(false);
+    resetForm();
+    await fetchPayrolls();
+  };
 
-    setFormData({
-      user_id: "",
-      period_month: selectedMonth,
-      period_year: selectedYear,
-      basic_salary: "",
-      allowance: "",
-      deduction: "",
-    });
+  const handleUpdatePayroll = async (id: number) => {
+    const basicSalary = Number(editForm.basic_salary) || 0;
+    const allowance = Number(editForm.allowance) || 0;
+    const deduction = Number(editForm.deduction) || 0;
+    const netSalary = basicSalary + allowance - deduction;
 
+    const { error } = await supabase
+      .from("payrolls")
+      .update({
+        basic_salary: basicSalary,
+        allowance: allowance,
+        deduction: deduction,
+        net_salary: netSalary,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Gagal mengupdate payroll:", error);
+      alert("Gagal memperbarui data penggajian.");
+      return;
+    }
+
+    alert("Data penggajian berhasil diperbarui.");
+    setIsEditing(false);
+    setEditPayrollId(null);
     await fetchPayrolls();
   };
 
@@ -465,9 +509,7 @@ function Payroll() {
     }
 
     alert("Payroll berhasil ditandai sebagai sudah dibayar.");
-
     setSelectedPayroll(null);
-
     await fetchPayrolls();
   };
 
@@ -490,9 +532,7 @@ function Payroll() {
     }
 
     alert("Data payroll berhasil dihapus.");
-
     setSelectedPayroll(null);
-
     await fetchPayrolls();
   };
 
@@ -683,25 +723,26 @@ function Payroll() {
 
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        {payroll.status === "pending" && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleMarkAsPaid(payroll.id)
-                            }
-                            title="Tandai Sudah Dibayar"
-                            className="flex h-9 items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-medium text-green-600 transition hover:bg-green-100"
-                          >
-                            <CheckCircle size={15} />
-                            <span>Bayar</span>
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditPayrollId(payroll.id);
+                            setEditForm({
+                              basic_salary: String(payroll.basic_salary),
+                              allowance: String(payroll.allowance),
+                              deduction: String(payroll.deduction),
+                            });
+                          }}
+                          title="Edit Gaji"
+                          className="flex h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-600 transition hover:bg-blue-100"
+                        >
+                          <Pencil size={15} />
+                          <span>Edit</span>
+                        </button>
 
                         <button
                           type="button"
-                          onClick={() =>
-                            setSelectedPayroll(payroll)
-                          }
+                          onClick={() => setSelectedPayroll(payroll)}
                           title="Detail"
                           className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-blue-600 transition hover:bg-blue-50"
                         >
@@ -818,12 +859,12 @@ function Payroll() {
 
                 <input
                   type="number"
-                  min="0"
+                  min="1"
                   value={formData.basic_salary}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      basic_salary: e.target.value,
+                      basic_salary: handleNumericInput(e.target.value),
                     }))
                   }
                   placeholder="Contoh: 5000000"
@@ -843,7 +884,7 @@ function Payroll() {
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      allowance: e.target.value,
+                      allowance: handleNumericInput(e.target.value),
                     }))
                   }
                   placeholder="Contoh: 500000"
@@ -863,7 +904,7 @@ function Payroll() {
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      deduction: e.target.value,
+                      deduction: handleNumericInput(e.target.value),
                     }))
                   }
                   placeholder="Contoh: 200000"
@@ -904,6 +945,98 @@ function Payroll() {
               >
                 Simpan Penggajian
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editPayrollId !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setEditPayrollId(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Edit Penggajian
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Perbarui nominal komponen gaji karyawan
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditPayrollId(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Basic Salary</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editForm.basic_salary}
+                  onChange={(e) => setEditForm({ ...editForm, basic_salary: handleNumericInput(e.target.value) })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Allowance</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.allowance}
+                  onChange={(e) => setEditForm({ ...editForm, allowance: handleNumericInput(e.target.value) })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Deduction</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.deduction}
+                  onChange={(e) => setEditForm({ ...editForm, deduction: handleNumericInput(e.target.value) })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="rounded-xl bg-slate-50 p-3 flex justify-between items-center text-sm font-medium">
+                <span>Estimasi Net Salary Baru:</span>
+                <span className="font-bold text-slate-900">
+                  {formatRupiah(
+                    (Number(editForm.basic_salary) || 0) +
+                    (Number(editForm.allowance) || 0) -
+                    (Number(editForm.deduction) || 0)
+                  )}
+                </span>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditPayrollId(null)}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUpdatePayroll(editPayrollId)}
+                  className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1033,29 +1166,29 @@ function Payroll() {
                   </span>
                 </div>
               )}
-            </div>
 
-            <div className="mt-7 flex justify-end gap-3">
-              {selectedPayroll.status === "pending" && (
+              <div className="mt-7 flex justify-end gap-3">
+                {selectedPayroll.status === "pending" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleMarkAsPaid(selectedPayroll.id)
+                    }
+                    className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                  >
+                    <CheckCircle size={17} />
+                    Tandai Sudah Dibayar
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() =>
-                    handleMarkAsPaid(selectedPayroll.id)
-                  }
-                  className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                  onClick={() => setSelectedPayroll(null)}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  <CheckCircle size={17} />
-                  Tandai Sudah Dibayar
+                  Tutup
                 </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setSelectedPayroll(null)}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                Tutup
-              </button>
+              </div>
             </div>
           </div>
         </div>
