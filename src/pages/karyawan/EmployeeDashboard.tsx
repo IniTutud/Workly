@@ -7,6 +7,7 @@ import PengajuanCuti from './PengajuanCuti';
 import Rekap from "./Rekap";
 import JadwalShift from './JadwalShift';
 import GajiSummary from './GajiSummary';
+import EmployeeTaskDashboard from './EmployeeTaskDashboard';
 import { 
   User, 
   Clock, 
@@ -17,41 +18,43 @@ import {
   X,
   ChevronRight,
   Calendar,
-  Wallet
+  Wallet,
+  CheckSquare
 } from 'lucide-react';
 
 const EmployeeDashboard: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   
-  // State baru untuk menyimpan data profil dari database
-  const [profile, setProfile] = useState<{ nama: string; role: string } | null>(null);
+  // State profile sudah ditambahkan avatarUrl
+  const [profile, setProfile] = useState<{ nama: string; role: string; avatarUrl: string | null } | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   
   const navigate = useNavigate();
 
-  // Fungsi untuk mengambil data user yang sedang login
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        // 1. Dapatkan info user auth yang sedang aktif
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
-          // 2. Ambil data profilnya dari tabel 'profiles'
+          // Mengambil full_name, role, dan photo_url
           const { data, error } = await supabase
             .from('profiles')
-            .select('full_name, role') // Sesuaikan nama kolom ini dengan buatan Fadhil
+            .select('full_name, role, photo_url') 
             .eq('id', user.id)
             .single();
 
           if (error) throw error;
           
           if (data) {
-            setProfile({ nama: data.full_name, role: data.role });
+            setProfile({ 
+              nama: data.full_name, 
+              role: data.role,
+              avatarUrl: data.photo_url || null
+            });
           }
         } else {
-          // Jika tidak ada session, lempar ke login
           navigate('/login');
         }
       } catch (error) {
@@ -80,6 +83,7 @@ const EmployeeDashboard: React.FC = () => {
     { id: 'rekap', label: 'Rekap Absensi', icon: ClipboardList },
     { id: 'jadwal', label: 'Jadwal & Tukar Shift', icon: Calendar },
     { id: 'gaji', label: 'Gaji', icon: Wallet },
+    { id: 'tasks', label: 'Tugas Saya', icon: CheckSquare },
   ];
 
   return (
@@ -122,9 +126,9 @@ const EmployeeDashboard: React.FC = () => {
               <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse"></div>
             ) : (
               <img 
-                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=eff6ff&color=1d4ed8`} 
+                src={profile?.avatarUrl ? profile.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=eff6ff&color=1d4ed8`} 
                 alt="User profile" 
-                className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+                className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
               />
             )}
             
@@ -156,7 +160,7 @@ const EmployeeDashboard: React.FC = () => {
         </div>
       </aside>
 
-      {/* Mobile Header (Sama seperti aslinya) */}
+      {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
@@ -183,9 +187,9 @@ const EmployeeDashboard: React.FC = () => {
               {/* Profil di Mobile Menu */}
               <div className="px-4 pb-4 mb-4 border-b border-slate-100 flex items-center gap-3">
                 <img 
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=eff6ff&color=1d4ed8`} 
+                  src={profile?.avatarUrl ? profile.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=eff6ff&color=1d4ed8`} 
                   alt="User profile" 
-                  className="w-10 h-10 rounded-full"
+                  className="w-10 h-10 rounded-full object-cover"
                 />
                 <div>
                   <p className="text-sm font-semibold text-slate-800">{profile?.nama || 'Karyawan'}</p>
@@ -221,7 +225,7 @@ const EmployeeDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Main Content Area (Sama seperti aslinya) */}
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-screen relative overflow-hidden bg-slate-50 pt-16 md:pt-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-400/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
@@ -248,6 +252,10 @@ const EmployeeDashboard: React.FC = () => {
           ) : activeMenu === 'gaji' ? (
             <div className="w-full max-w-[1400px] mx-auto">
               <GajiSummary />
+            </div>
+          ) : activeMenu === 'tasks' ? (
+            <div className="w-full max-w-[1400px] mx-auto">
+              <EmployeeTaskDashboard />
             </div>
           ) : (
             <div className="max-w-2xl w-full">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabase';
-import { Wallet, X, CheckCircle2, Clock } from 'lucide-react';
+import { Wallet, X, CheckCircle2, Clock, History } from 'lucide-react';
 
 interface Payroll {
   id: number;
@@ -18,8 +18,10 @@ interface Payroll {
 export default function GajiSummary() {
   const [userId, setUserId] = useState<string | null>(null);
   const [payroll, setPayroll] = useState<Payroll | null>(null);
+  const [payrollHistory, setPayrollHistory] = useState<Payroll[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [selectedHistory, setSelectedHistory] = useState<Payroll | null>(null);
 
   useEffect(() => {
     const fetchUserAndPayroll = async () => {
@@ -40,26 +42,33 @@ export default function GajiSummary() {
   }, [userId]);
 
   const fetchPayroll = async () => {
-    // Ambil bulan dan tahun saat ini
-    const currentMonth = new Date().getMonth() + 1; // getMonth() mulai dari 0
+    const currentMonth = new Date().getMonth() + 1; 
     const currentYear = new Date().getFullYear();
     
     try {
       setLoading(true);
+      
+      // Fetch all payrolls for history
       const { data, error } = await supabase
         .from('payrolls')
         .select('*')
         .eq('user_id', userId)
-        .eq('period_month', currentMonth)
-        .eq('period_year', currentYear)
-        .single();
+        .order('period_year', { ascending: false })
+        .order('period_month', { ascending: false });
         
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 adalah error code jika data tidak ditemukan (no rows return dari single())
+      if (error) {
         console.error('Error fetching payroll:', error);
       }
       
-      setPayroll(data);
+      if (data && data.length > 0) {
+        setPayrollHistory(data);
+        
+        // Find current month's payroll
+        const current = data.find(p => p.period_month === currentMonth && p.period_year === currentYear);
+        if (current) {
+          setPayroll(current);
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -89,30 +98,23 @@ export default function GajiSummary() {
     });
   };
 
+  // Helper to open modal for specific payroll
+  const openDetailModal = (item: Payroll) => {
+    setSelectedHistory(item);
+    setShowModal(true);
+  };
+
   if (loading) {
     return (
       <div className="w-full bg-white/60 backdrop-blur-xl border border-white/80 p-6 rounded-3xl shadow-xl shadow-slate-200/50 mt-6 animate-pulse">
         <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
         <div className="h-10 bg-slate-200 rounded w-1/2 mb-4"></div>
-        <div className="h-10 bg-slate-200 rounded w-full"></div>
+        <div className="h-40 bg-slate-200 rounded w-full"></div>
       </div>
     );
   }
 
-  // Jika belum ada data gaji bulan ini
-  if (!payroll) {
-    return (
-      <div className="w-full bg-white/60 backdrop-blur-xl border border-white/80 p-6 rounded-3xl shadow-xl shadow-slate-200/50 mt-6 text-left transform hover:scale-[1.02] transition-transform duration-500">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-            <Wallet className="w-5 h-5" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800">Gaji Bulan Ini</h3>
-        </div>
-        <p className="text-slate-500 text-sm mt-2">Data slip gaji bulan ini belum tersedia.</p>
-      </div>
-    );
-  }
+  const modalData = selectedHistory || payroll;
 
   return (
     <div className="space-y-6 w-full max-w-[1400px] mx-auto pb-12">
@@ -132,46 +134,116 @@ export default function GajiSummary() {
         </div>
       </div>
 
-      {/* Widget Ringkasan Gaji */}
-      <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-left transition-all duration-300">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
-            <Wallet className="w-6 h-6" />
+      {/* Widget Ringkasan Gaji Bulan Ini */}
+      {payroll ? (
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-left transition-all duration-300">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">
+              Periode {getMonthName(payroll.period_month)} {payroll.period_year}
+            </h3>
           </div>
-          <h3 className="text-xl font-bold text-slate-800">
-            Periode {getMonthName(payroll.period_month)} {payroll.period_year}
-          </h3>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-slate-50 p-6 rounded-xl border border-slate-100">
+            <div>
+              <p className="text-sm text-slate-500 font-semibold mb-2 uppercase tracking-wider">Net Salary (Gaji Bersih)</p>
+              <p className="text-4xl font-extrabold text-blue-700 tracking-tight">
+                {formatRupiah(payroll.net_salary)}
+              </p>
+            </div>
+            <button 
+              onClick={() => openDetailModal(payroll)}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
+            >
+              Lihat Detail Slip
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-left">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800">Gaji Bulan Ini</h3>
+          </div>
+          <p className="text-slate-500 text-sm mt-2">Data slip gaji bulan ini belum tersedia.</p>
+        </div>
+      )}
+
+      {/* Tabel Riwayat Gaji (Salary History) */}
+      <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+        <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
+          <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+            <History className="w-5 h-5" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800">Riwayat Penggajian</h3>
         </div>
         
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-slate-50 p-6 rounded-xl border border-slate-100">
-          <div>
-            <p className="text-sm text-slate-500 font-semibold mb-2 uppercase tracking-wider">Net Salary (Gaji Bersih)</p>
-            <p className="text-4xl font-extrabold text-blue-700 tracking-tight">
-              {formatRupiah(payroll.net_salary)}
-            </p>
-          </div>
-          <button 
-            onClick={() => setShowModal(true)}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
-          >
-            Lihat Detail Slip
-          </button>
+        <div className="overflow-x-auto">
+          {payrollHistory.length > 0 ? (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-white">
+                  <th className="p-4 text-sm font-semibold text-slate-500 uppercase tracking-wider">Periode</th>
+                  <th className="p-4 text-sm font-semibold text-slate-500 uppercase tracking-wider">Gaji Pokok</th>
+                  <th className="p-4 text-sm font-semibold text-slate-500 uppercase tracking-wider">Gaji Bersih</th>
+                  <th className="p-4 text-sm font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="p-4 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {payrollHistory.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-sm font-bold text-slate-800">
+                      {getMonthName(item.period_month)} {item.period_year}
+                    </td>
+                    <td className="p-4 text-sm text-slate-600">
+                      {formatRupiah(item.basic_salary)}
+                    </td>
+                    <td className="p-4 text-sm font-extrabold text-blue-600">
+                      {formatRupiah(item.net_salary)}
+                    </td>
+                    <td className="p-4 text-sm">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                        item.status === 'paid' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {item.status === 'paid' ? 'Sudah Dibayar' : 'Menunggu'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-right">
+                      <button 
+                        onClick={() => openDetailModal(item)}
+                        className="text-blue-600 hover:text-blue-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        Detail
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-8 text-center text-slate-500 font-medium">Belum ada riwayat penggajian.</div>
+          )}
         </div>
       </div>
 
       {/* Modal Detail Gaji */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+      {showModal && modalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Detail Penggajian</h2>
-                <p className="text-sm text-slate-500">Periode {getMonthName(payroll.period_month)} {payroll.period_year}</p>
+                <h2 className="text-xl font-bold text-slate-800">Detail Slip Gaji</h2>
+                <p className="text-sm font-medium text-slate-500 mt-1">Periode {getMonthName(modalData.period_month)} {modalData.period_year}</p>
               </div>
               <button 
-                onClick={() => setShowModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                onClick={() => { setShowModal(false); setSelectedHistory(null); }}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -180,50 +252,50 @@ export default function GajiSummary() {
             {/* Rincian */}
             <div className="p-6 space-y-4">
               <div className="flex justify-between items-center py-2">
-                <span className="text-slate-600 font-medium">Basic Salary</span>
-                <span className="text-slate-800 font-semibold">{formatRupiah(payroll.basic_salary)}</span>
+                <span className="text-slate-600 font-medium">Gaji Pokok (Basic Salary)</span>
+                <span className="text-slate-800 font-bold">{formatRupiah(modalData.basic_salary)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-t border-slate-100">
-                <span className="text-slate-600 font-medium">Allowance</span>
-                <span className="text-green-600 font-bold">+ {formatRupiah(payroll.allowance)}</span>
+                <span className="text-slate-600 font-medium">Tunjangan (Allowance)</span>
+                <span className="text-green-600 font-bold">+ {formatRupiah(modalData.allowance)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-t border-slate-100">
-                <span className="text-slate-600 font-medium">Deduction</span>
-                <span className="text-red-600 font-bold">- {formatRupiah(payroll.deduction)}</span>
+                <span className="text-slate-600 font-medium">Potongan (Deduction)</span>
+                <span className="text-red-600 font-bold">- {formatRupiah(modalData.deduction)}</span>
               </div>
             </div>
 
             {/* Bagian Total & Status */}
             <div className="bg-slate-50 p-6 border-t border-slate-100">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-slate-800 font-bold text-lg">Net Salary</span>
-                <span className="text-blue-700 font-extrabold text-2xl">{formatRupiah(payroll.net_salary)}</span>
+              <div className="flex justify-between items-center mb-5">
+                <span className="text-slate-800 font-bold text-lg">Total Diterima (Net)</span>
+                <span className="text-blue-700 font-extrabold text-2xl">{formatRupiah(modalData.net_salary)}</span>
               </div>
               
-              <div className="flex items-center justify-between bg-white px-4 py-3 rounded-xl border border-slate-200">
+              <div className="flex items-center justify-between bg-white px-4 py-3.5 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-2">
-                  {payroll.status === 'Paid' ? (
+                  {modalData.status === 'paid' ? (
                     <CheckCircle2 className="w-5 h-5 text-green-500" />
                   ) : (
                     <Clock className="w-5 h-5 text-amber-500" />
                   )}
-                  <span className={`font-semibold text-sm ${payroll.status === 'Paid' ? 'text-green-700' : 'text-amber-700'}`}>
-                    {payroll.status === 'Paid' ? 'Sudah Dibayar' : 'Menunggu Pembayaran'}
+                  <span className={`font-bold text-sm ${modalData.status === 'paid' ? 'text-green-700' : 'text-amber-700'}`}>
+                    {modalData.status === 'paid' ? 'Sudah Dibayar' : 'Menunggu Pembayaran'}
                   </span>
                 </div>
-                {payroll.status === 'Paid' && payroll.paid_at && (
-                  <span className="text-xs font-medium text-slate-500">
-                    {formatDate(payroll.paid_at)}
+                {modalData.status === 'paid' && modalData.paid_at && (
+                  <span className="text-xs font-bold text-slate-500">
+                    {formatDate(modalData.paid_at)}
                   </span>
                 )}
               </div>
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-100">
+            <div className="p-4 border-t border-slate-100 bg-white">
               <button 
-                onClick={() => setShowModal(false)}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
+                onClick={() => { setShowModal(false); setSelectedHistory(null); }}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
               >
                 Tutup
               </button>
