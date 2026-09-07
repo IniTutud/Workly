@@ -95,8 +95,8 @@ const EmployeeTaskDashboard = () => {
           const statusConfig = getStatusConfig(task.status);
           
           // 3. Logic for Submit Button (Only 'Not Started' or 'Revision')
-          const isPendingReview = task.status === 'In Progress' || task.status === 'Pending' || task.status === 'Under Review';
-          const isCompleted = task.status === 'Completed' || task.status === 'Approved';
+          const isPendingReview = task.status === 'waiting_review';
+          const isCompleted = task.status === 'approved';
           const canSubmit = !isPendingReview && !isCompleted;
 
           return (
