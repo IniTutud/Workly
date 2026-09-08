@@ -248,7 +248,7 @@ const Presensi: React.FC = () => {
         currentHour > limitHour || 
         (currentHour === limitHour && currentMinute > limitMinute);
       
-      const attendanceStatus = isLate ? 'late' : 'present';
+      const attendanceStatus = isLate ? 'Terlambat' : 'present';
       // ----------------------------------------
 
       const { data, error } = await supabase

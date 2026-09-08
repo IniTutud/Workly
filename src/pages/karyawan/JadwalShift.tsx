@@ -41,6 +41,7 @@ interface ShiftSwap {
   id: string;
   date_from: string;
   date_to: string;
+  reason?: string;
   status: string;
   target_user_id: string;
   requester_id: string;
@@ -183,8 +184,10 @@ export default function JadwalShift() {
     target_user_id: '',
     date_from: '',
     date_to: '',
+    reason: '',
   });
   const [showSwapForm, setShowSwapForm] = useState(false);
+  const [selectedSwapDetail, setSelectedSwapDetail] = useState<ShiftSwap | null>(null);
 
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const weekEnd = weekDates[6];
@@ -257,7 +260,7 @@ export default function JadwalShift() {
       const { data, error } = await supabase
         .from('shift_swap_requests')
         .select(
-          `id, date_from, date_to, status, target_user_id, requester_id,
+          `id, date_from, date_to, reason, status, target_user_id, requester_id,
            requester:profiles!requester_id(full_name),
            target:profiles!target_user_id(full_name)`
         )
@@ -281,6 +284,10 @@ export default function JadwalShift() {
   const handleSubmitSwap = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+    if (!formData.reason.trim()) {
+      alert('Silakan masukkan alasan kenapa mau ganti shift.');
+      return;
+    }
     try {
       // UPDATE: Payload insert disesuaikan dengan nama kolom DB
       const { error } = await supabase.from('shift_swap_requests').insert([
@@ -289,6 +296,7 @@ export default function JadwalShift() {
           target_user_id: formData.target_user_id,
           date_from: formData.date_from,
           date_to: formData.date_to,
+          reason: formData.reason.trim(),
           status: 'pending_employee_approval'
         },
       ]);
@@ -296,7 +304,7 @@ export default function JadwalShift() {
       if (error) throw error; 
       
       alert('Pengajuan tukar shift berhasil dikirim!');
-      setFormData({ target_user_id: '', date_from: '', date_to: '' });
+      setFormData({ target_user_id: '', date_from: '', date_to: '', reason: '' });
       setShowSwapForm(false);
       await fetchSwaps();
     } catch (err: any) {
@@ -564,55 +572,93 @@ export default function JadwalShift() {
               <RefreshCw className="w-5 h-5 text-blue-500" />
               Ajukan Pertukaran Shift
             </h2>
-            <button onClick={() => setShowSwapForm(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <button
+              onClick={() => setShowSwapForm(false)}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+            >
               <XCircle className="w-5 h-5" />
             </button>
           </div>
-          <form onSubmit={handleSubmitSwap} className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <form onSubmit={handleSubmitSwap} className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Rekan Pengganti <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  required
+                  value={formData.target_user_id}
+                  onChange={(e) => setFormData({ ...formData, target_user_id: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all"
+                >
+                  <option value="">— Pilih Rekan —</option>
+                  {colleagues
+                    .filter((c) => c.role === 'karyawan')
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.full_name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Tanggal Diserahkan (Jadwal Anda) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={formData.date_from}
+                  onChange={(e) => setFormData({ ...formData, date_from: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Tanggal Diambil (Jadwal Rekan) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={formData.date_to}
+                  onChange={(e) => setFormData({ ...formData, date_to: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Rekan Pengganti</label>
-              <select
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Alasan Ganti Shift <span className="text-rose-500">*</span>
+              </label>
+              <textarea
                 required
-                value={formData.target_user_id}
-                onChange={(e) => setFormData({ ...formData, target_user_id: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                rows={3}
+                placeholder="Tuliskan alasan kenapa ingin mengganti/menukar shift (contoh: Ada kepentingan keluarga mendesak, jadwal kuliah, kondisi kesehatan, dll)..."
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none placeholder:text-slate-400"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSwapForm(false);
+                  setFormData({ target_user_id: '', date_from: '', date_to: '', reason: '' });
+                }}
+                className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold rounded-xl text-sm transition-colors"
               >
-                <option value="">— Pilih Rekan —</option>
-                {colleagues
-                  .filter((c) => c.role === 'karyawan')
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name}
-                    </option>
-                  ))}
-              </select>
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl transition-colors shadow-sm text-sm"
+              >
+                Kirim Pengajuan
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Tanggal Diserahkan</label>
-              <input
-                type="date"
-                required
-                value={formData.date_from}
-                onChange={(e) => setFormData({ ...formData, date_from: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Tanggal Diambil</label>
-              <input
-                type="date"
-                required
-                value={formData.date_to}
-                onChange={(e) => setFormData({ ...formData, date_to: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-sm"
-            >
-              Kirim Pengajuan
-            </button>
           </form>
         </div>
       )}
@@ -627,7 +673,7 @@ export default function JadwalShift() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[900px]">
+          <table className="w-full border-collapse min-w-[950px]">
             <thead>
               <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <th className="px-4 py-3 text-left border-b border-slate-100 w-12">No</th>
@@ -637,6 +683,7 @@ export default function JadwalShift() {
                 <th className="px-4 py-3 text-center border-b border-slate-100 w-10" />
                 <th className="px-4 py-3 text-left border-b border-slate-100">Pengganti</th>
                 <th className="px-4 py-3 text-center border-b border-slate-100">Tanggal Baru</th>
+                <th className="px-4 py-3 text-left border-b border-slate-100">Alasan</th>
                 <th className="px-4 py-3 text-center border-b border-slate-100">Status</th>
                 <th className="px-4 py-3 text-center border-b border-slate-100">Aksi</th>
               </tr>
@@ -644,7 +691,7 @@ export default function JadwalShift() {
             <tbody className="text-sm">
               {swaps.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={10} className="py-12 text-center">
                     <ArrowRightLeft className="w-8 h-8 text-slate-200 mx-auto mb-3" />
                     <p className="text-sm text-slate-400">Belum ada permintaan tukar shift</p>
                     <p className="text-xs text-slate-300 mt-1">
@@ -701,34 +748,45 @@ export default function JadwalShift() {
                         {new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(takeDate)}
                       </td>
 
+                      <td className="px-4 py-3 text-slate-600 max-w-[180px]">
+                        <span className="truncate block text-xs" title={swap.reason || '-'}>
+                          {swap.reason || '-'}
+                        </span>
+                      </td>
+
                       <td className="px-4 py-3 text-center">{getStatusBadge(swap.status)}</td>
 
                       <td className="px-4 py-3 text-center">
-                        {isTargetPending ? (
-                          <div className="flex gap-1.5 justify-center">
-                            <button
-                              onClick={() => handleResponseSwap(swap.id, true)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-                              title="Terima"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Terima
-                            </button>
-                            <button
-                              onClick={() => handleResponseSwap(swap.id, false)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-                              title="Tolak"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              Tolak
-                            </button>
-                          </div>
-                        ) : (
-                          <button className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedSwapDetail(swap)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                            title="Lihat Detail & Alasan"
+                          >
                             <Eye className="w-3.5 h-3.5" />
                             Detail
                           </button>
-                        )}
+                          {isTargetPending && (
+                            <>
+                              <button
+                                onClick={() => handleResponseSwap(swap.id, true)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                                title="Terima"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Terima
+                              </button>
+                              <button
+                                onClick={() => handleResponseSwap(swap.id, false)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                                title="Tolak"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Tolak
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -738,6 +796,96 @@ export default function JadwalShift() {
           </table>
         </div>
       </div>
+
+      {/* ── MODAL DETAIL PENGURUSAN / ALASAN TUKAR SHIFT ─────────────────────── */}
+      {selectedSwapDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <ArrowRightLeft className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Detail Pengajuan Tukar Shift</h3>
+                  <p className="text-xs text-slate-500">Informasi lengkap pertukaran shift</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedSwapDetail(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-500">Status Pengajuan</span>
+                {getStatusBadge(selectedSwapDetail.status)}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Pemohon (Pengaju)</p>
+                  <p className="text-sm font-bold text-slate-800">{selectedSwapDetail.requester?.full_name || '-'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tanggal: {new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(selectedSwapDetail.date_from))}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Rekan Pengganti</p>
+                  <p className="text-sm font-bold text-slate-800">{selectedSwapDetail.target?.full_name || '-'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tanggal: {new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(selectedSwapDetail.date_to))}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/60">
+                <p className="text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                  <span>Alasan Pengajuan Ganti Shift</span>
+                </p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                  {selectedSwapDetail.reason || 'Tidak ada alasan yang dicantumkan.'}
+                </p>
+              </div>
+
+              {selectedSwapDetail.target_user_id === currentUser?.id && selectedSwapDetail.status === 'pending_employee_approval' && (
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    onClick={async () => {
+                      await handleResponseSwap(selectedSwapDetail.id, false);
+                      setSelectedSwapDetail(null);
+                    }}
+                    className="px-4 py-2 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
+                  >
+                    Tolak Pengajuan
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await handleResponseSwap(selectedSwapDetail.id, true);
+                      setSelectedSwapDetail(null);
+                    }}
+                    className="px-4 py-2 text-xs font-semibold bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors shadow-sm"
+                  >
+                    Setujui Pertukaran
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setSelectedSwapDetail(null)}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

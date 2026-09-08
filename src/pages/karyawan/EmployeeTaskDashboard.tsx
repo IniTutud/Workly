@@ -86,8 +86,8 @@ const EmployeeTaskDashboard = () => {
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
       {/* 1. Typography Overhaul */}
       <div className="mb-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">My Tasks</h1>
-        <p className="text-gray-500 mt-3 text-lg">Manage your assignments and submit your daily work.</p>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">Tugas </h1>
+        <p className="text-gray-500 mt-3 text-lg">Kelola tugas Anda dan kirimkan pekerjaan harian Anda.</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -133,7 +133,7 @@ const EmployeeTaskDashboard = () => {
                 </button>
               ) : (
                 <div className="w-full bg-gray-50 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm font-bold flex items-center justify-center cursor-not-allowed">
-                  {isCompleted ? 'Task Approved ✅' : 'Waiting for Admin Review ⏳'}
+                  {isCompleted ? 'Tugas Diterima ✅' : 'Tugas dalam pengecekan ⏳'}
                 </div>
               )}
             </div>
