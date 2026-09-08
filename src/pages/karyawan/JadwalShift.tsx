@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../utils/supabase';
 import {
   Calendar,
@@ -86,7 +86,7 @@ const SHIFT_CONFIG: Record<
 };
 
 const AVATAR_COLORS = [
-  'bg-blue-500',
+  'bg-[#14b8a6]/100',
   'bg-emerald-500',
   'bg-violet-500',
   'bg-amber-500',
@@ -338,7 +338,7 @@ export default function JadwalShift() {
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; cls: string }> = {
       pending_employee_approval: { label: 'Menunggu Konfirmasi', cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-      pending_admin_approval: { label: 'Menunggu Admin', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+      pending_admin_approval: { label: 'Menunggu Admin', cls: 'bg-[#14b8a6]/10 text-[#0f766e] border-[#14b8a6]/30' },
       approved: { label: 'Disetujui', cls: 'bg-green-50 text-green-700 border-green-200' },
       rejected_by_employee: { label: 'Ditolak Rekan', cls: 'bg-red-50 text-red-700 border-red-200' },
       rejected: { label: 'Ditolak', cls: 'bg-red-50 text-red-700 border-red-200' },
@@ -355,7 +355,7 @@ export default function JadwalShift() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-blue-200 border-t-blue-600" />
+          <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-[#14b8a6]/30 border-t-blue-600" />
           <p className="text-sm text-slate-400 animate-pulse">Memuat jadwal...</p>
         </div>
       </div>
@@ -569,7 +569,7 @@ export default function JadwalShift() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-top-2">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-blue-500" />
+              <RefreshCw className="w-5 h-5 text-[#14b8a6]" />
               Ajukan Pertukaran Shift
             </h2>
             <button

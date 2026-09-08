@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -335,7 +335,7 @@ const Presensi: React.FC = () => {
   return (
     <div className="w-full max-w-xl mx-auto pb-12 animate-in fade-in zoom-in-95 duration-500">
       <Card className="shadow-2xl border-slate-200 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#1e3a8a]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
         <CardHeader className="text-center bg-white border-b border-slate-100 pb-8 pt-8 relative z-10">
           <CardTitle className="text-3xl font-extrabold text-slate-800 mb-2 tracking-tight">
             Presensi Digital
@@ -349,7 +349,7 @@ const Presensi: React.FC = () => {
           
           {/* DIGITAL CLOCK */}
           <div className="text-center space-y-2 bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
-            <div className="text-5xl font-mono font-black text-blue-600 tracking-wider">
+            <div className="text-5xl font-mono font-black text-[#14b8a6] tracking-wider">
               {formattedTime}
             </div>
             <div className="text-sm text-slate-500 font-semibold uppercase tracking-widest">
@@ -433,7 +433,7 @@ const Presensi: React.FC = () => {
               <div className="w-full max-w-sm pt-6 border-t border-slate-200">
                 {statusAbsen === 'belum' && (
                   <Button 
-                    className="w-full py-6 text-lg font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                    className="w-full py-6 text-lg font-bold bg-[#1e3a8a] hover:bg-[#111827] text-white rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
                     disabled={!selectedFile || isLoading}
                     onClick={handleClockIn}
                   >
@@ -472,7 +472,7 @@ const Presensi: React.FC = () => {
           {/* RIWAYAT ABSENSI */}
           <div className="w-full pt-8 border-t border-slate-200 mt-8">
             <div className="flex items-center gap-2 mb-4 text-slate-800">
-              <FileText className="w-5 h-5 text-blue-600" />
+              <FileText className="w-5 h-5 text-[#14b8a6]" />
               <h3 className="text-lg font-bold">Riwayat Absensi</h3>
             </div>
             

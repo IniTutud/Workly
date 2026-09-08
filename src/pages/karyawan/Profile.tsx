@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../utils/supabase';
 import { 
   Fingerprint,
@@ -254,7 +254,7 @@ const Profile: React.FC = () => {
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 isEditing 
                   ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-[#1e3a8a] text-white hover:bg-[#111827]'
               }`}
             >
               {isEditing ? (
@@ -323,7 +323,7 @@ const Profile: React.FC = () => {
                           type="text"
                           value={editForm.fullName}
                           onChange={(e) => setEditForm({...editForm, fullName: e.target.value})}
-                          className="w-full text-center px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full text-center px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#14b8a6]"
                           placeholder="Nama Lengkap"
                         />
                       </div>
@@ -332,7 +332,7 @@ const Profile: React.FC = () => {
                         <textarea 
                           value={editForm.bio}
                           onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                          className="w-full text-center px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                          className="w-full text-center px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#14b8a6] min-h-[80px]"
                           placeholder="Tulis sedikit tentang dirimu..."
                         />
                       </div>
@@ -377,7 +377,7 @@ const Profile: React.FC = () => {
                         <select
                           value={editForm.gender}
                           onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
-                          className="w-full max-w-xs px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          className="w-full max-w-xs px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#14b8a6] bg-white"
                         >
                           <option value="">Pilih Jenis Kelamin</option>
                           <option value="Laki-laki">Laki-laki</option>
@@ -399,7 +399,7 @@ const Profile: React.FC = () => {
                           type="date"
                           value={editForm.tanggalLahir}
                           onChange={(e) => setEditForm({...editForm, tanggalLahir: e.target.value})}
-                          className="w-full max-w-xs px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          className="w-full max-w-xs px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#14b8a6] bg-white"
                         />
                       ) : (
                         <p className="text-slate-900 font-semibold">{profile?.tanggalLahir || '-'}</p>
@@ -450,7 +450,7 @@ const Profile: React.FC = () => {
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#1e3a8a] text-white font-medium hover:bg-[#111827] disabled:opacity-70 disabled:cursor-not-allowed transition-all"
                     >
                       {saving ? (
                         <>

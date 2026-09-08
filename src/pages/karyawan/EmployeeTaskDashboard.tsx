@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { fetchEmployeeTasks, submitTaskProof, Task } from '../../services/taskService';
 import { UploadCloud, Clock, CheckCircle, AlertCircle, Clock3, PlayCircle } from 'lucide-react';
 import { supabase } from '../../utils/supabase';
@@ -60,7 +60,7 @@ const EmployeeTaskDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1e3a8a]"></div>
       </div>
     );
   }
@@ -78,7 +78,7 @@ const EmployeeTaskDashboard = () => {
       case 'Revision':
         return { color: 'bg-red-100 text-red-800 border-red-200', icon: <AlertCircle className="w-4 h-4 mr-1.5" /> };
       default: // Not Started / Empty
-        return { color: 'bg-blue-100 text-blue-800 border-blue-200', icon: <PlayCircle className="w-4 h-4 mr-1.5" /> };
+        return { color: 'bg-[#1e3a8a]/10 text-blue-800 border-[#14b8a6]/30', icon: <PlayCircle className="w-4 h-4 mr-1.5" /> };
     }
   };
 
@@ -126,7 +126,7 @@ const EmployeeTaskDashboard = () => {
               {canSubmit ? (
                 <button 
                   onClick={() => setSelectedTask(task)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-3 rounded-xl transition-all duration-200 text-sm font-bold shadow-sm flex items-center justify-center"
+                  className="w-full bg-[#1e3a8a] hover:bg-[#111827] active:bg-blue-800 text-white py-3 rounded-xl transition-all duration-200 text-sm font-bold shadow-sm flex items-center justify-center"
                 >
                   <UploadCloud className="w-5 h-5 mr-2" />
                   Submit Work
@@ -175,7 +175,7 @@ const EmployeeTaskDashboard = () => {
                     required
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="w-full border border-gray-300 rounded-2xl p-4 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none text-gray-800"
+                    className="w-full border border-gray-300 rounded-2xl p-4 focus:ring-4 focus:ring-[#14b8a6]/20 focus:border-[#14b8a6] outline-none transition-all resize-none text-gray-800"
                     rows={4}
                     placeholder="Describe what you completed or any challenges faced..."
                   />
@@ -183,8 +183,8 @@ const EmployeeTaskDashboard = () => {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Proof of Work (Image)</label>
-                  <label className="cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 rounded-2xl p-8 flex flex-col items-center justify-center bg-gray-50 hover:bg-blue-50/50 transition-colors group">
-                    <UploadCloud className="w-10 h-10 text-gray-400 group-hover:text-blue-500 mb-3 transition-colors" />
+                  <label className="cursor-pointer border-2 border-dashed border-gray-300 hover:border-[#14b8a6] rounded-2xl p-8 flex flex-col items-center justify-center bg-gray-50 hover:bg-[#14b8a6]/8 transition-colors group">
+                    <UploadCloud className="w-10 h-10 text-gray-400 group-hover:text-[#14b8a6] mb-3 transition-colors" />
                     <span className="text-sm font-bold text-gray-700 mb-1">Click to upload or drag and drop</span>
                     <span className="text-xs font-medium text-gray-500">PNG, JPG, JPEG (Max 5MB)</span>
                     <input 
@@ -219,7 +219,7 @@ const EmployeeTaskDashboard = () => {
                   <button 
                     type="submit"
                     disabled={isSubmitting || !file}
-                    className="flex-1 px-4 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
+                    className="flex-1 px-4 py-3.5 bg-[#1e3a8a] text-white font-bold rounded-xl hover:bg-[#111827] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
                   >
                     {isSubmitting ? (
                       <>

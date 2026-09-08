@@ -65,18 +65,23 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 relative overflow-hidden flex items-center justify-center p-4">
+      {/* Background Decorative Blur Spheres */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-[#1e3a8a]/10 blur-3xl pointer-events-none"></div>
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-[#14b8a6]/15 blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/2 left-3/4 -translate-y-1/2 w-64 h-64 rounded-full bg-[#ffbf00]/10 blur-3xl pointer-events-none"></div>
+
       {/* Card Container */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden relative">
-        {/* Top Decorative Line */}
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-blue-600 to-indigo-500"></div>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden relative z-10">
+        {/* Top Decorative Line with Brand Gradient */}
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#1e3a8a] via-[#14b8a6] to-[#ffbf00]"></div>
         
         <div className="p-8">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-linear-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-blue-500/30">
+            <div className="w-12 h-12 bg-gradient-to-tr from-[#1e3a8a] to-[#14b8a6] rounded-xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-[#14b8a6]/30">
               W
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Login ke Workly</h1>
+            <h1 className="text-2xl font-bold text-[#111827] tracking-tight">Login ke Workly</h1>
             <p className="text-sm text-slate-500 mt-2">Masukkan email dan password Anda untuk masuk</p>
           </div>
 
@@ -89,7 +94,7 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-semibold text-slate-700 block">
+              <label htmlFor="email" className="text-sm font-semibold text-[#111827] block">
                 Email
               </label>
               <input
@@ -98,14 +103,14 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#14b8a6]/25 focus:border-[#14b8a6] transition-all placeholder:text-slate-400"
                 placeholder="nama@email.com"
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-semibold text-slate-700 block">
+                <label htmlFor="password" className="text-sm font-semibold text-[#111827] block">
                   Password
                 </label>
               </div>
@@ -115,7 +120,7 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#14b8a6]/25 focus:border-[#14b8a6] transition-all placeholder:text-slate-400"
                 placeholder="••••••••"
               />
             </div>
@@ -123,7 +128,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] mt-2"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1e3a8a] hover:bg-[#111827] disabled:bg-slate-400 text-white font-semibold rounded-xl shadow-lg shadow-[#1e3a8a]/20 hover:shadow-[#111827]/25 transition-all active:scale-[0.98] mt-2"
             >
               {loading ? (
                 <>

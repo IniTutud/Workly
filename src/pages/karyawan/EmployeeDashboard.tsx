@@ -107,14 +107,14 @@ const EmployeeDashboard: React.FC = () => {
               onClick={() => setActiveMenu(item.id)}
               className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group relative overflow-hidden ${
                 activeMenu === item.id 
-                  ? 'bg-blue-50 text-blue-700' 
-                  : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                  ? 'bg-[#14b8a6]/10 text-[#0f766e] font-semibold' 
+                  : 'text-slate-600 hover:text-[#0f766e] hover:bg-[#14b8a6]/5'
               }`}
             >
-              <div className={`absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-md transition-transform origin-left ${activeMenu === item.id ? 'scale-y-100' : 'transform scale-y-0 group-hover:scale-y-100'}`}></div>
-              <item.icon className={`w-5 h-5 transition-colors ${activeMenu === item.id ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'}`} />
-              <span className={`font-medium ${activeMenu === item.id ? 'text-blue-700' : ''}`}>{item.label}</span>
-              <ChevronRight className={`w-4 h-4 ml-auto transition-all ${activeMenu === item.id ? 'opacity-100 text-blue-600 translate-x-0' : 'opacity-0 group-hover:opacity-100 text-blue-500 transform -translate-x-2 group-hover:translate-x-0'}`} />
+              <div className={`absolute left-0 top-0 bottom-0 w-1 bg-[#14b8a6] rounded-r-md transition-transform origin-left ${activeMenu === item.id ? 'scale-y-100' : 'transform scale-y-0 group-hover:scale-y-100'}`}></div>
+              <item.icon className={`w-5 h-5 transition-colors ${activeMenu === item.id ? 'text-[#0f766e]' : 'text-slate-400 group-hover:text-[#0f766e]'}`} />
+              <span className={`font-medium ${activeMenu === item.id ? 'text-[#0f766e]' : ''}`}>{item.label}</span>
+              <ChevronRight className={`w-4 h-4 ml-auto transition-all ${activeMenu === item.id ? 'opacity-100 text-[#0f766e] translate-x-0' : 'opacity-0 group-hover:opacity-100 text-[#14b8a6] transform -translate-x-2 group-hover:translate-x-0'}`} />
             </button>
           ))}
         </div>
@@ -126,7 +126,7 @@ const EmployeeDashboard: React.FC = () => {
               <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse"></div>
             ) : (
               <img 
-                src={profile?.avatarUrl ? profile.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=eff6ff&color=1d4ed8`} 
+                src={profile?.avatarUrl ? profile.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=0f766e&color=ffffff`} 
                 alt="User profile" 
                 className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
               />
@@ -187,7 +187,7 @@ const EmployeeDashboard: React.FC = () => {
               {/* Profil di Mobile Menu */}
               <div className="px-4 pb-4 mb-4 border-b border-slate-100 flex items-center gap-3">
                 <img 
-                  src={profile?.avatarUrl ? profile.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=eff6ff&color=1d4ed8`} 
+                  src={profile?.avatarUrl ? profile.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.nama || 'User')}&background=0f766e&color=ffffff`} 
                   alt="User profile" 
                   className="w-10 h-10 rounded-full object-cover"
                 />
@@ -203,12 +203,12 @@ const EmployeeDashboard: React.FC = () => {
                   onClick={() => { setActiveMenu(item.id); setIsMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${
                     activeMenu === item.id
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                      ? 'bg-[#14b8a6]/10 text-[#0f766e] font-semibold'
+                      : 'text-slate-600 hover:text-[#0f766e] hover:bg-[#14b8a6]/5'
                   }`}
                 >
-                  <item.icon className={`w-5 h-5 ${activeMenu === item.id ? 'text-blue-600' : ''}`} />
-                  <span className={`font-medium ${activeMenu === item.id ? 'text-blue-700' : ''}`}>{item.label}</span>
+                  <item.icon className={`w-5 h-5 ${activeMenu === item.id ? 'text-[#0f766e]' : ''}`} />
+                  <span className={`font-medium ${activeMenu === item.id ? 'text-[#0f766e]' : ''}`}>{item.label}</span>
                 </button>
               ))}
             </div>

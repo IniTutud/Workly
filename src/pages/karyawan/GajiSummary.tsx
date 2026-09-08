@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Wallet, X, CheckCircle2, Clock, History } from 'lucide-react';
 
@@ -138,7 +138,7 @@ export default function GajiSummary() {
       {payroll ? (
         <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-left transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+            <div className="p-2.5 bg-[#14b8a6]/10 rounded-xl text-[#14b8a6]">
               <Wallet className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-slate-800">
@@ -149,13 +149,13 @@ export default function GajiSummary() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-slate-50 p-6 rounded-xl border border-slate-100">
             <div>
               <p className="text-sm text-slate-500 font-semibold mb-2 uppercase tracking-wider">Net Salary (Gaji Bersih)</p>
-              <p className="text-4xl font-extrabold text-blue-700 tracking-tight">
+              <p className="text-4xl font-extrabold text-[#0f766e] tracking-tight">
                 {formatRupiah(payroll.net_salary)}
               </p>
             </div>
             <button 
               onClick={() => openDetailModal(payroll)}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
+              className="px-8 py-3 bg-[#1e3a8a] hover:bg-[#111827] text-white font-semibold rounded-xl shadow-lg shadow-[#1e3a8a]/20 transition-all hover:-translate-y-0.5"
             >
               Lihat Detail Slip
             </button>
@@ -164,7 +164,7 @@ export default function GajiSummary() {
       ) : (
         <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-left">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+            <div className="p-2 bg-[#1e3a8a]/10 rounded-lg text-[#14b8a6]">
               <Wallet className="w-5 h-5" />
             </div>
             <h3 className="text-lg font-bold text-slate-800">Gaji Bulan Ini</h3>
@@ -203,7 +203,7 @@ export default function GajiSummary() {
                     <td className="p-4 text-sm text-slate-600">
                       {formatRupiah(item.basic_salary)}
                     </td>
-                    <td className="p-4 text-sm font-extrabold text-blue-600">
+                    <td className="p-4 text-sm font-extrabold text-[#14b8a6]">
                       {formatRupiah(item.net_salary)}
                     </td>
                     <td className="p-4 text-sm">
@@ -216,7 +216,7 @@ export default function GajiSummary() {
                     <td className="p-4 text-sm text-right">
                       <button 
                         onClick={() => openDetailModal(item)}
-                        className="text-blue-600 hover:text-blue-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                        className="text-[#14b8a6] hover:text-[#0f766e] font-semibold px-3 py-1.5 rounded-lg hover:bg-[#14b8a6]/10 transition-colors"
                       >
                         Detail
                       </button>
@@ -269,7 +269,7 @@ export default function GajiSummary() {
             <div className="bg-slate-50 p-6 border-t border-slate-100">
               <div className="flex justify-between items-center mb-5">
                 <span className="text-slate-800 font-bold text-lg">Total Diterima (Net)</span>
-                <span className="text-blue-700 font-extrabold text-2xl">{formatRupiah(modalData.net_salary)}</span>
+                <span className="text-[#0f766e] font-extrabold text-2xl">{formatRupiah(modalData.net_salary)}</span>
               </div>
               
               <div className="flex items-center justify-between bg-white px-4 py-3.5 rounded-xl border border-slate-200 shadow-sm">

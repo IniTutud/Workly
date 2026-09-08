@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "../../utils/supabase";
 
 type Attendance = {
@@ -364,7 +364,7 @@ export default function RekapAbsensi() {
                   Number(e.target.value)
                 )
               }
-              className="border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#14b8a6]"
             >
               <option value={0}>Januari</option>
               <option value={1}>Februari</option>
@@ -394,7 +394,7 @@ export default function RekapAbsensi() {
                   Number(e.target.value)
                 )
               }
-              className="border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#14b8a6]"
             >
               <option value={2023}>2023</option>
               <option value={2024}>2024</option>
@@ -446,7 +446,7 @@ export default function RekapAbsensi() {
             Cuti
           </p>
 
-          <h2 className="text-3xl font-bold text-blue-500 mt-2">
+          <h2 className="text-3xl font-bold text-[#14b8a6] mt-2">
             {totalCuti}
           </h2>
 
