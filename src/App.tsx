@@ -12,7 +12,7 @@ import AttendanceMonthly from "./pages/AttendanceMonthly";
 import Shift from "./pages/Shift";
 import SwapSchedule from "./pages/SwapSchedule";
 import Payroll from "./pages/Payroll";
-import AdminTaskReview from "./pages/AdminTaskReview";
+import Tasks from "./pages/Tasks";
 
 export default function App() {
   return (
@@ -116,7 +116,7 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminLayout>
-                <AdminTaskReview />
+                <Tasks />
               </AdminLayout>
             </ProtectedRoute>
           }

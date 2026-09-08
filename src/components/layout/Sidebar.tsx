@@ -11,8 +11,7 @@ import {
   ChevronDown,
   BriefcaseBusiness,
   Wallet,
-  FolderOpen,
-  Receipt,  
+  FolderOpen,  
 } from "lucide-react";
 
 function Sidebar() {

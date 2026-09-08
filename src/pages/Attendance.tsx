@@ -15,7 +15,7 @@ type Attendance = {
   photoUrl: string | null;
   rawDate: string;
   rawClockIn?: string | null;
-  shiftStatus?: string; // Menyimpan status shift asli untuk pengurutan
+  shiftStatus?: string;
 };
 
 function Attendance() {
@@ -40,7 +40,6 @@ function Attendance() {
     setLoading(true);
 
     try {
-      // 1. Ambil data karyawan khusus role karyawan
       const { data: employeesData, error: empError } = await supabase
         .from("profiles")
         .select("id, full_name, department")
@@ -48,7 +47,6 @@ function Attendance() {
 
       if (empError) throw empError;
 
-      // 2. Ambil data absensi
       const { data: attendanceData, error: attError } = await supabase
         .from("attendances")
         .select(`
@@ -62,7 +60,6 @@ function Attendance() {
 
       if (attError) throw attError;
 
-      // 3. Ambil data jadwal shift karyawan pada tanggal yang sedang dipilih
       const { data: schedulesData, error: schedError } = await supabase
         .from("employee_schedules")
         .select("user_id, date, status")
@@ -70,10 +67,9 @@ function Attendance() {
 
       if (schedError) throw schedError;
 
-      // Buat map jadwal untuk pengecekan cepat (user_id -> schedule_status)
       const scheduleMap = new Map();
       (schedulesData || []).forEach((sched: any) => {
-        scheduleMap.set(sched.user_id, sched.status); // "working", "off", "leave"
+        scheduleMap.set(sched.user_id, sched.status);
       });
 
       const attendanceMap = new Map();
@@ -172,34 +168,24 @@ function Attendance() {
           }
         }
       }
-              
-      // LOGIKA PENGURUTAN BARU:
-      // 1. Karyawan "working" di atas, karyawan "off/leave" di bawah.
-      // 2. Untuk kelompok "off/leave": diurutkan berdasarkan abjad nama.
-      // 3. Untuk kelompok "working": 
-      //    - Yang belum clock in ("Tidak Hadir") ditaruh paling atas.
-      //    - Yang sudah clock in diurutkan dari yang paling awal (bawah) ke yang paling telat/akhir (atas).
+            
       combinedList.sort((a, b) => {
         const isOffA = a.shiftStatus === "off" || a.shiftStatus === "leave";
         const isOffB = b.shiftStatus === "off" || b.shiftStatus === "leave";
 
-        // Jika salah satu off/leave dan satunya working
-        if (isOffA && !isOffB) return 1; // Off di bawah
-        if (!isOffA && isOffB) return -1; // Working di atas
+        if (isOffA && !isOffB) return 1;
+        if (!isOffA && isOffB) return -1;
 
-        // Jika keduanya off/leave, urutkan berdasarkan abjad nama
         if (isOffA && isOffB) {
           return a.name.localeCompare(b.name);
         }
 
-        // Jika keduanya working:
         const isAbsentA = a.status === "Tidak Hadir";
         const isAbsentB = b.status === "Tidak Hadir";
 
-        if (isAbsentA && !isAbsentB) return -1; // Tidak hadir paling atas
-        if (!isAbsentA && isAbsentB) return 1;
+        if (isAbsentA && !isAbsentB) return 1; 
+        if (!isAbsentA && isAbsentB) return -1;
 
-        // Berdasarkan waktu clock in (paling awal di bawah, paling akhir/telat di atas)
         if (a.rawClockIn && b.rawClockIn) {
           return new Date(b.rawClockIn).getTime() - new Date(a.rawClockIn).getTime();
         }
@@ -351,9 +337,7 @@ function Attendance() {
               >
                 <span>{getFilterLabel(statusFilter)}</span>
                 <ChevronDown size={18} className={`text-slate-400 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              c
+              </button>            
             </div>
           </div>
         </div>

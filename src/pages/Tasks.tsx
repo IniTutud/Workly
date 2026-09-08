@@ -82,7 +82,7 @@ export default function Tasks() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
-  const [employeeSearch, setEmployeeSearch] = useState(""); // State untuk search bar karyawan
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -161,7 +161,6 @@ export default function Tasks() {
     );
   }, [employees]);
 
-  // Filter karyawan berdasarkan input search di dalam dropdown
   const filteredEmployeesForDropdown = useMemo(() => {
     return employees.filter((employee) =>
       employee.full_name.toLowerCase().includes(employeeSearch.toLowerCase())
@@ -175,7 +174,7 @@ export default function Tasks() {
   };
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+    const filtered = tasks.filter((task) => {
       const employeeName =
         employeeMap[task.assigned_to] ||
         "Karyawan tidak ditemukan";
@@ -193,6 +192,24 @@ export default function Tasks() {
         task.status === statusFilter;
 
       return matchesSearch && matchesStatus;
+    });
+
+    const statusPriority: Record<string, number> = {
+      waiting_review: 1,
+      assigned: 2,
+      revision: 3,
+      approved: 4,
+    };
+
+    return filtered.sort((a, b) => {
+      const priorityA = statusPriority[a.status] || 99;
+      const priorityB = statusPriority[b.status] || 99;
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
     });
   }, [tasks, employeeMap, search, statusFilter]);
 
@@ -253,7 +270,7 @@ export default function Tasks() {
         start_date: "",
         due_date: "",
       });
-      setEmployeeSearch(""); // Reset search karyawan
+      setEmployeeSearch("");
 
       setShowCreateModal(false);
 
@@ -738,7 +755,6 @@ export default function Tasks() {
                     <>
                       <div className="fixed inset-0 z-20" onClick={() => setIsEmployeeDropdownOpen(false)} />
                       <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-                        {/* Search Bar di dalam Dropdown Karyawan */}
                         <div className="relative mb-2">
                           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                           <input
@@ -751,7 +767,6 @@ export default function Tasks() {
                           />
                         </div>
 
-                        {/* List Karyawan */}
                         <div className="max-h-48 overflow-y-auto space-y-0.5">
                           {filteredEmployeesForDropdown.length === 0 ? (
                             <p className="px-3 py-2 text-center text-xs text-slate-400 italic">Karyawan tidak ditemukan</p>
