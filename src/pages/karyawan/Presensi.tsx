@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -259,7 +259,7 @@ const Presensi: React.FC = () => {
       
       const { data: scheduleData, error: scheduleError } = await supabase
         .from('employee_schedules')
-        .select('shift_id')
+        .select('shift_id, status')
         .eq('user_id', user.id)
         .eq('date', todayStr)
         .single();
@@ -267,6 +267,10 @@ const Presensi: React.FC = () => {
       if (scheduleError || !scheduleData || !scheduleData.shift_id) {
         throw new Error("Anda tidak memiliki jadwal shift untuk hari ini.");
       }
+
+      if (scheduleData.status && scheduleData.status.toLowerCase() === 'leave') {
+        throw new Error("Hari ini Anda sedang dalam status Cuti (Leave), tidak dapat melakukan presensi.");
+}
 
       const { data: shiftData, error: shiftError } = await supabase
         .from('shifts')

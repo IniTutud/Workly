@@ -411,9 +411,6 @@ export default function JadwalShift() {
               {weekDates[0].getDate()} {formatShortMonth(weekDates[0])} – {weekEnd.getDate()} {formatShortMonth(weekEnd)} {weekEnd.getFullYear()}
             </span>
           </div>
-          <button onClick={() => setShowSwapForm(!showSwapForm)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
-            <ArrowRightLeft className="w-4 h-4" /> Tukar Shift
-          </button>
         </div>
 
         <div className="overflow-x-auto">
