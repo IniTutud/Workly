@@ -34,7 +34,7 @@ interface EmployeeSchedule {
   user_id: string;
   date: string;
   status: string;
-  shift_id?: number | null; // Tambahan untuk membaca ID shift dari database
+  shift_id?: number | null; 
 }
 
 interface ShiftSwap {
@@ -49,7 +49,6 @@ interface ShiftSwap {
   target: { full_name: string };
 }
 
-// Tambahan tipe data untuk tabel shifts buatanmu
 interface ShiftData {
   id: number;
   name: string;
@@ -64,13 +63,13 @@ interface ShiftData {
 
 const DAYS_ID = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'] as const;
 
-// SHIFT_CONFIG sekarang hanya untuk fallback status yang tidak ada jam kerjanya (Libur/Cuti/Sakit)
 const SHIFT_CONFIG: Record<
   string,
   { label: string; time: string; bg: string; text: string; border: string; dot: string }
 > = {
   libur: { label: 'Libur', time: 'OFF', bg: 'bg-slate-50', text: 'text-slate-400', border: 'border-slate-200', dot: 'bg-slate-400' },
   cuti: { label: 'Cuti', time: 'OFF', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
+  leave: { label: 'Cuti', time: 'OFF', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
   izin: { label: 'Izin', time: 'OFF', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
   sakit: { label: 'Sakit', time: 'OFF', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
 };
@@ -143,6 +142,7 @@ function getShiftIcon(status: string | undefined) {
     case 'libur':
       return Coffee;
     case 'cuti':
+    case 'leave':
     case 'izin':
     case 'sakit':
       return XCircle;
@@ -160,10 +160,7 @@ export default function JadwalShift() {
   const [allEmployees, setAllEmployees] = useState<Profile[]>([]);
   const [schedules, setSchedules] = useState<EmployeeSchedule[]>([]);
   const [swaps, setSwaps] = useState<ShiftSwap[]>([]);
-  
-  // State baru untuk menampung data dari tabel shifts
   const [dbShifts, setDbShifts] = useState<ShiftData[]>([]); 
-  
   const [loading, setLoading] = useState(true);
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()));
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('weekly');
@@ -230,11 +227,10 @@ export default function JadwalShift() {
         .order('full_name');
       if (employeesData) setAllEmployees(employeesData as Profile[]);
 
-      // AMBIL DATA SHIFT DINAMIS DARI DATABASE
       const { data: shiftDataDb } = await supabase
         .from('shifts')
         .select('*')
-        .order('id'); // Opsional: urutkan agar rapi
+        .order('id');
       if (shiftDataDb) setDbShifts(shiftDataDb as ShiftData[]);
 
       await fetchSwaps();
@@ -252,7 +248,7 @@ export default function JadwalShift() {
 
       const { data, error } = await supabase
         .from('employee_schedules')
-        .select('id, user_id, date, status, shift_id') // PENTING: Mengambil kolom shift_id
+        .select('id, user_id, date, status, shift_id')
         .gte('date', startStr)
         .lte('date', endStr);
 
@@ -286,7 +282,6 @@ export default function JadwalShift() {
   const goNext = () => setWeekStart((p) => addDays(p, 7));
   const goToday = () => setWeekStart(getMondayOfWeek(new Date()));
 
-  // ... (Sisa fungsi form handleSubmitSwap, handleResponseSwap, getStatusBadge tetap sama) ...
   const handleSubmitSwap = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -320,18 +315,6 @@ export default function JadwalShift() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const map: Record<string, { label: string; cls: string }> = {
-      pending_employee_approval: { label: 'Menunggu Konfirmasi', cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-      pending_admin_approval: { label: 'Menunggu Admin', cls: 'bg-[#14b8a6]/10 text-[#0f766e] border-[#14b8a6]/30' },
-      approved: { label: 'Disetujui', cls: 'bg-green-50 text-green-700 border-green-200' },
-      rejected_by_employee: { label: 'Ditolak Rekan', cls: 'bg-red-50 text-red-700 border-red-200' },
-      rejected: { label: 'Ditolak', cls: 'bg-red-50 text-red-700 border-red-200' },
-    };
-    const info = map[status] ?? { label: status, cls: 'bg-gray-50 text-gray-600 border-gray-200' };
-    return <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${info.cls}`}>{info.label}</span>;
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -355,10 +338,10 @@ export default function JadwalShift() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
-              Jadwal Shift &amp; Tukar Shift
+              Jadwal Shift
               <span className="text-slate-400 font-normal text-lg ml-2">— {formatHeaderMonth(weekStart)}</span>
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">Lihat jadwal mingguan semua karyawan dan ajukan pertukaran shift</p>
+            <p className="text-slate-500 text-sm mt-0.5">Lihat jadwal mingguan semua karyawan</p>
           </div>
         </div>
 
@@ -371,12 +354,10 @@ export default function JadwalShift() {
         </div>
       </div>
 
-      {/* ── SHIFT LEGEND (Dinamsi dari Database) ──────────────────────────── */}
+      {/* ── SHIFT LEGEND ──────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-4 px-1">
-        {/* Legend untuk Shift Utama (Pagi, Sore, Malam, dll) dari Tabel shifts */}
         {dbShifts.map((shift) => (
           <div key={shift.id} className="flex items-center gap-1.5">
-            {/* Mengambil style warna langsung dari db untuk kotak legend */}
             <div className={`w-3.5 h-3.5 rounded-[4px] border shadow-sm ${shift.color}`} />
             <span className="text-xs text-slate-500 font-medium">
               {shift.name} 
@@ -387,7 +368,6 @@ export default function JadwalShift() {
           </div>
         ))}
 
-        {/* Legend Cadangan untuk Status Tanpa Jam (Libur, Cuti, Sakit) */}
         {['libur', 'cuti', 'sakit'].map((key) => {
           const cfg = SHIFT_CONFIG[key];
           return (
@@ -475,11 +455,24 @@ export default function JadwalShift() {
                         let Icon = Clock;
 
                         if (schedule) {
-                          // Jika schedule menggunakan relasi shift_id (untuk Pagi, Sore, Malam, dll)
-                          if (schedule.shift_id) {
+                          const cleanStatus = (schedule.status ?? '').trim().toLowerCase();
+
+                          // 1. Prioritaskan pengecekan status teks (Cuti, Libur, Sakit, Izin, Leave) terlebih dahulu
+                          if (cleanStatus && SHIFT_CONFIG[cleanStatus]) {
+                            const fallback = getShiftInfo(schedule.status);
+                            if (fallback) {
+                              Icon = getShiftIcon(schedule.status);
+                              shiftDisplay = {
+                                label: fallback.label,
+                                time: fallback.time,
+                                classes: `${fallback.bg} ${fallback.text} ${fallback.border}`,
+                              };
+                            }
+                          } 
+                          // 2. Jika tidak ada status cuti/libur khusus, cek berdasarkan shift_id (Pagi, Sore, Malam)
+                          else if (schedule.shift_id) {
                             const dbShift = dbShifts.find((s) => s.id === schedule.shift_id);
                             if (dbShift) {
-                              // Tentukan icon berdasarkan nama shift
                               const sName = dbShift.name.toLowerCase();
                               if (sName.includes('pagi')) Icon = Sun;
                               else if (sName.includes('sore')) Icon = Sunset;
@@ -488,19 +481,7 @@ export default function JadwalShift() {
                               shiftDisplay = {
                                 label: dbShift.name,
                                 time: `${dbShift.start_time.slice(0, 5)} - ${dbShift.end_time.slice(0, 5)}`,
-                                classes: dbShift.color, // Langsung pakai kode tailwind panjang buatanmu
-                              };
-                            }
-                          } 
-                          // Jika schedule menggunakan status teks (untuk Libur, Cuti, Sakit)
-                          else {
-                            const fallback = getShiftInfo(schedule.status);
-                            if (fallback) {
-                              Icon = getShiftIcon(schedule.status);
-                              shiftDisplay = {
-                                label: fallback.label,
-                                time: fallback.time,
-                                classes: `${fallback.bg} ${fallback.text} ${fallback.border}`,
+                                classes: dbShift.color,
                               };
                             }
                           }
@@ -513,12 +494,6 @@ export default function JadwalShift() {
                                 <Icon className="w-3.5 h-3.5 opacity-70" />
                                 <span className="text-xs font-bold leading-tight">{shiftDisplay.label}</span>
                                 <span className="text-[10px] opacity-60 font-medium">{shiftDisplay.time}</span>
-                                {/* Ikon indikator swap (jika diperlukan logic swapnya) */}
-                                {['sore', 'malam'].includes(shiftDisplay.label.toLowerCase()) && (
-                                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center">
-                                    <ArrowRightLeft className="w-2.5 h-2.5 text-slate-400" />
-                                  </span>
-                                )}
                               </div>
                             ) : (
                               <span className="text-slate-300 text-xs font-medium">—</span>
@@ -534,25 +509,6 @@ export default function JadwalShift() {
           </table>
         </div>
       </div>
-
-      {/* ... (Sisa kode Modal Swap dsb di bawah ini dibiarkan persis sama seperti sebelumnya) ... */}
-      {showSwapForm && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-top-2">
-          {/* ... isi form swap ... */}
-        </div>
-      )}
-      
-      {/* ── SWAP REQUEST TABLE ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {/* ... isi table request swap ... */}
-      </div>
-      
-      {/* ── MODAL DETAIL PENGURUSAN ── */}
-      {selectedSwapDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
-          {/* ... isi modal detail ... */}
-        </div>
-      )}
     </div>
   );
 }
