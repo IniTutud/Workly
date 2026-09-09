@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ interface Attendance {
   clockIn: string;
   clockOut: string;
   status: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -204,7 +206,9 @@ const Presensi: React.FC = () => {
         date: formatDate(att.date || att.clock_in),
         clockIn: formatTime(att.clock_in),
         clockOut: formatTime(att.clock_out),
-        status: att.status || 'present'
+        status: att.status || 'present',
+        latitude: att.latitude,
+        longitude: att.longitude
       }));
       setAttendanceHistory(mappedAttendances);
     } catch (error) {
@@ -249,6 +253,44 @@ const Presensi: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Pengguna belum login");
 
+      const now = new Date();
+      // VALIDASI SHIFT (Maksimal 1 jam sebelum shift)
+      const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+      
+      const { data: scheduleData, error: scheduleError } = await supabase
+        .from('employee_schedules')
+        .select('shift_id')
+        .eq('user_id', user.id)
+        .eq('date', todayStr)
+        .single();
+        
+      if (scheduleError || !scheduleData || !scheduleData.shift_id) {
+        throw new Error("Anda tidak memiliki jadwal shift untuk hari ini.");
+      }
+
+      const { data: shiftData, error: shiftError } = await supabase
+        .from('shifts')
+        .select('start_time, name')
+        .eq('id', scheduleData.shift_id)
+        .single();
+
+      if (shiftError || !shiftData) {
+        throw new Error("Data shift tidak ditemukan.");
+      }
+
+      const shiftStartTimeStr = shiftData.start_time; // format "HH:MM:SS"
+      const [shiftHour, shiftMinute] = shiftStartTimeStr.split(':').map(Number);
+      
+      const shiftTime = new Date(now);
+      shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+      
+      const oneHourBeforeShift = new Date(shiftTime);
+      oneHourBeforeShift.setHours(shiftTime.getHours() - 1);
+      
+      if (now < oneHourBeforeShift) {
+        throw new Error(`Belum waktunya clock-in. Anda baru bisa clock-in mulai pukul ${oneHourBeforeShift.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} untuk shift ${shiftData.name}.`);
+      }
+
       // 1. DAPATKAN LOKASI GPS TERLEBIH DAHULU
       let location;
       try {
@@ -261,19 +303,8 @@ const Presensi: React.FC = () => {
       // 2. Upload foto jika lokasi berhasil didapat
       const photoUrl = await uploadPhoto(selectedFile);
       if (!photoUrl) throw new Error("Gagal mendapatkan URL foto");
-
-      const now = new Date();
       
-      const limitHour = 9;
-      const limitMinute = 0;
-
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      
-      const isLate = 
-        currentHour > limitHour || 
-        (currentHour === limitHour && currentMinute > limitMinute);
-      
+      const isLate = now > shiftTime;
       const attendanceStatus = isLate ? 'late' : 'present';
 
       // 3. Insert data ke Supabase beserta titik latitude dan longitude
@@ -520,19 +551,20 @@ const Presensi: React.FC = () => {
                     <TableHead className="font-semibold text-slate-600">Tanggal</TableHead>
                     <TableHead className="font-semibold text-slate-600">Clock In</TableHead>
                     <TableHead className="font-semibold text-slate-600">Clock Out</TableHead>
+                    <TableHead className="font-semibold text-slate-600">Lokasi</TableHead>
                     <TableHead className="font-semibold text-slate-600">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loadingHistory ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-slate-500">
+                      <TableCell colSpan={5} className="text-center py-6 text-slate-500">
                         Memuat data...
                       </TableCell>
                     </TableRow>
                   ) : attendanceHistory.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-slate-500">
+                      <TableCell colSpan={5} className="text-center py-6 text-slate-500">
                         Belum ada riwayat absensi.
                       </TableCell>
                     </TableRow>
@@ -542,6 +574,20 @@ const Presensi: React.FC = () => {
                         <TableCell className="font-medium text-slate-700">{row.date}</TableCell>
                         <TableCell>{row.clockIn}</TableCell>
                         <TableCell>{row.clockOut}</TableCell>
+                        <TableCell>
+                          {row.latitude && row.longitude ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:text-blue-700 underline text-sm inline-flex items-center gap-1"
+                            >
+                              Lihat Peta
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 text-sm">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge 
                             variant={
