@@ -29,6 +29,22 @@ const formatTime = (timeStr: string | null) => {
     return new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' }).format(date);
   }
   return timeStr.substring(0, 5); // Fallback for HH:MM:SS format
+};  
+
+const getLocation = (): Promise<{lat: number, lng: number}> => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Browser atau perangkat tidak mendukung fitur lokasi."));
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        }),
+        (error) => reject(new Error("Akses lokasi ditolak atau GPS tidak aktif."))
+      );
+    }
+  });
 };
 
 const Presensi: React.FC = () => {
@@ -233,6 +249,16 @@ const Presensi: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Pengguna belum login");
 
+      // 1. DAPATKAN LOKASI GPS TERLEBIH DAHULU
+      let location;
+      try {
+        location = await getLocation();
+      } catch (locError: any) {
+        // Jika user menolak lokasi, hentikan proses absen
+        throw new Error(locError.message); 
+      }
+
+      // 2. Upload foto jika lokasi berhasil didapat
       const photoUrl = await uploadPhoto(selectedFile);
       if (!photoUrl) throw new Error("Gagal mendapatkan URL foto");
 
@@ -248,16 +274,18 @@ const Presensi: React.FC = () => {
         currentHour > limitHour || 
         (currentHour === limitHour && currentMinute > limitMinute);
       
-      const attendanceStatus = isLate ? 'Terlambat' : 'present';
-      // ----------------------------------------
+      const attendanceStatus = isLate ? 'late' : 'present';
 
+      // 3. Insert data ke Supabase beserta titik latitude dan longitude
       const { data, error } = await supabase
-        .from('attendances')
+        .from('attendances') // Pastikan nama tabel sudah benar
         .insert({
           user_id: user.id,
           clock_in: now.toISOString(),
           photo_url: photoUrl,
-          status: attendanceStatus
+          status: attendanceStatus,
+          latitude: location.lat,    // Data GPS ditambahkan di sini
+          longitude: location.lng    // Data GPS ditambahkan di sini
         })
         .select()
         .single();
@@ -267,7 +295,6 @@ const Presensi: React.FC = () => {
       setAttendanceId(data.id);
       setStatusAbsen('sudah_masuk');
       
-      // Berikan informasi notifikasi yang jelas ke user
       if (isLate) {
         alert('Clock In berhasil, namun Anda tercatat TERLAMBAT.');
       } else {
@@ -285,7 +312,6 @@ const Presensi: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   const handleClockOut = async () => {
     if (!selectedFile || !attendanceId) return;
     setIsLoading(true);
@@ -294,12 +320,23 @@ const Presensi: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Pengguna belum login");
 
+      // Ambil lokasi saat pulang
+      let location;
+      try {
+        location = await getLocation();
+      } catch (locError: any) {
+        throw new Error(locError.message); 
+      }
+
       const photoUrl = await uploadPhoto(selectedFile);
-      // Opsional kalau mau simpan foto clock out juga, atau langsung update clock_out saja:
+      
       const { error: updateError } = await supabase
         .from('attendances')
         .update({
           clock_out: new Date().toISOString(),
+          // Boleh tambah kolom terpisah untuk lokasi pulang jika butuh:
+          // clock_out_latitude: location.lat,
+          // clock_out_longitude: location.lng
         })
         .eq('id', attendanceId);
 
