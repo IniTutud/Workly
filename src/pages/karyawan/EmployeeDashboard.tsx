@@ -81,7 +81,7 @@ const EmployeeDashboard: React.FC = () => {
     { id: 'presensi', label: 'Presensi', icon: Clock },
     { id: 'leave', label: 'Pengajuan Cuti', icon: CalendarDays },
     { id: 'rekap', label: 'Rekap Absensi', icon: ClipboardList },
-    { id: 'jadwal', label: 'Jadwal & Tukar Shift', icon: Calendar },
+    { id: 'jadwal', label: 'Jadwal Shift', icon: Calendar },
     { id: 'gaji', label: 'Gaji', icon: Wallet },
     { id: 'tasks', label: 'Tugas Saya', icon: CheckSquare },
   ];
