@@ -164,7 +164,7 @@ function Sidebar() {
                   Pembagian Jadwal
                 </NavLink>
 
-                <NavLink
+                {/* <NavLink
                   to="/admin/swapschedule"
                   className={({ isActive }) =>
                     `rounded-lg px-4 py-2 text-sm transition ${
@@ -175,7 +175,7 @@ function Sidebar() {
                   }
                 >
                   Pengajuan Tukar Jadwal
-                </NavLink>
+                </NavLink> */}
 
               </div>
             )}
