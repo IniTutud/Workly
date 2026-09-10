@@ -146,8 +146,8 @@ const EmployeeTaskDashboard = () => {
           <div className="text-gray-300 mb-4 flex justify-center">
             <CheckCircle className="w-20 h-20" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">All caught up!</h3>
-          <p className="text-gray-500 mt-2 text-lg">You don't have any pending tasks right now.</p>
+          <h3 className="text-2xl font-bold text-gray-900">tidak ada lagi yang tertinggal!</h3>
+          <p className="text-gray-500 mt-2 text-lg">Saat ini Anda tidak memiliki tugas yang tertunda.</p>
         </div>
       )}
 
