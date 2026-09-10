@@ -59,14 +59,17 @@ function AttendanceMonthly() {
     const [selectedYear, setSelectedYear] = useState(
         currentDate.getFullYear()
     );
+    
+    const [currentPage, setCurrentPage] = useState(1);
+    const rowsPerPage = 10;
 
     useEffect(() => {
         fetchMonthlyAttendance();
     }, [selectedMonth, selectedYear]);
-
-    // =========================================================
-    // TANGGAL LOKAL
-    // =========================================================
+    
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedMonth, selectedYear, search]); 
 
     const formatLocalDate = (date: Date) => {
         const year = date.getFullYear();
@@ -74,21 +77,13 @@ function AttendanceMonthly() {
         const day = String(date.getDate()).padStart(2, "0");
 
         return `${year}-${month}-${day}`;
-    };
-
-    // =========================================================
-    // TANGGAL AWAL BULAN
-    // =========================================================
+    }; 
 
     const getStartDate = () => {
         const month = String(selectedMonth + 1).padStart(2, "0");
 
         return `${selectedYear}-${month}-01`;
-    };
-
-    // =========================================================
-    // TANGGAL AKHIR BULAN
-    // =========================================================
+    }; 
 
     const getEndDate = () => {
         const lastDay = new Date(
@@ -103,11 +98,7 @@ function AttendanceMonthly() {
             2,
             "0"
         )}`;
-    };
-
-    // =========================================================
-    // JUMLAH HARI CUTI
-    // =========================================================
+    }; 
 
     const calculateLeaveDays = (
         startDate: string,
@@ -124,22 +115,14 @@ function AttendanceMonthly() {
                 difference / (1000 * 60 * 60 * 24)
             ) + 1
         );
-    };
-
-    // =========================================================
-    // FETCH DATA
-    // =========================================================
+    };   
 
     const fetchMonthlyAttendance = async () => {
         setLoading(true);
 
         try {
             const startDate = getStartDate();
-            const endDate = getEndDate();
-
-            // =================================================
-            // 1. PROFILES
-            // =================================================
+            const endDate = getEndDate();       
 
             const {
                 data: profiles,
@@ -156,11 +139,7 @@ function AttendanceMonthly() {
 
             if (profileError) {
                 throw profileError;
-            }
-
-            // =================================================
-            // 2. ATTENDANCE BULAN TERPILIH
-            // =================================================
+            }          
 
             const nextMonthDate = new Date(
                 selectedYear,
@@ -191,11 +170,7 @@ function AttendanceMonthly() {
 
             if (attendanceError) {
                 throw attendanceError;
-            }
-
-            // =================================================
-            // 3. CUTI APPROVED
-            // =================================================
+            }        
 
             const {
                 data: leaveData,
@@ -211,23 +186,10 @@ function AttendanceMonthly() {
 
             if (leaveError) {
                 throw leaveError;
-            }
-
-            // =================================================
-            // 4. TANGGAL HARI INI
-            // =================================================
+            }           
 
             const today = new Date();
-            const todayStr = formatLocalDate(today);
-
-            // Kalau bulan yang dipilih sudah lewat,
-            // semua tanggal sampai akhir bulan boleh dihitung.
-
-            // Kalau bulan sekarang,
-            // hanya sampai hari ini.
-
-            // Kalau bulan yang dipilih di masa depan,
-            // belum ada jadwal yang dihitung absent.
+            const todayStr = formatLocalDate(today);           
 
             let maxDate = endDate;
 
@@ -244,11 +206,7 @@ function AttendanceMonthly() {
                 )
             ) {
                 maxDate = "";
-            }
-
-            // =================================================
-            // 5. EMPLOYEE SCHEDULE
-            // =================================================
+            }            
 
             let schedulesData: ScheduleData[] = [];
 
@@ -270,11 +228,7 @@ function AttendanceMonthly() {
 
                 schedulesData =
                     (data || []) as ScheduleData[];
-            }
-
-            // =================================================
-            // TYPE CAST
-            // =================================================
+            }            
 
             const attendance =
                 (attendanceData || []) as AttendanceData[];
@@ -286,61 +240,37 @@ function AttendanceMonthly() {
                 schedulesData as ScheduleData[];
 
             const profileList =
-                (profiles || []) as ProfileData[];
-
-            // =================================================
-            // SUMMARY PER EMPLOYEE
-            // =================================================
+                (profiles || []) as ProfileData[];            
 
             const summary: EmployeeSummary[] =
-                profileList.map((employee) => {
-                    // =========================================
-                    // ATTENDANCE MILIK EMPLOYEE
-                    // =========================================
-
+                profileList.map((employee) => {                    
                     const employeeAttendance =
                         attendance.filter(
                             (item) =>
                                 item.user_id ===
                                 employee.id
-                        );
-
-                    // =========================================
-                    // CUTI MILIK EMPLOYEE
-                    // =========================================
+                        );                   
 
                     const employeeLeaves =
                         leaves.filter(
                             (item) =>
                                 item.user_id ===
                                 employee.id
-                        );
-
-                    // =========================================
-                    // HADIR
-                    // =========================================
+                        );                    
 
                     const present =
                         employeeAttendance.filter(
                             (item) =>
                                 item.status ===
                                 "present"
-                        ).length;
-
-                    // =========================================
-                    // TERLAMBAT
-                    // =========================================
+                        ).length;                    
 
                     const late =
                         employeeAttendance.filter(
                             (item) =>
                                 item.status ===
                                 "late"
-                        ).length;
-
-                    // =========================================
-                    // TANGGAL YANG SUDAH ABSEN
-                    // =========================================
+                        ).length;                    
 
                     const attendedDates =
                         new Set<string>();
@@ -365,27 +295,18 @@ function AttendanceMonthly() {
                                 localDate
                             );
                         }
-                    );
-
-                    // =========================================
-                    // EXPLICIT ABSENT
-                    // =========================================
+                    );                  
 
                     const explicitAbsent =
                         employeeAttendance.filter(
                             (item) =>
                                 item.status ===
                                 "absent"
-                        ).length;
-
-                    // =========================================
-                    // ABSENT DARI SCHEDULE
-                    // =========================================
+                        ).length;                    
 
                     let unrecordedAbsent = 0;
 
-                    schedules.forEach((sched) => {
-                        // Hanya jadwal working
+                    schedules.forEach((sched) => {                        
                         if (
                             sched.user_id !==
                                 employee.id ||
@@ -394,9 +315,7 @@ function AttendanceMonthly() {
                         ) {
                             return;
                         }
-
-                        // Kalau sudah melakukan attendance,
-                        // jangan dihitung absent.
+                       
                         if (
                             attendedDates.has(
                                 sched.date
@@ -404,9 +323,7 @@ function AttendanceMonthly() {
                         ) {
                             return;
                         }
-
-                        // Cek apakah tanggal tersebut
-                        // termasuk periode cuti approved.
+                        
                         const isOnLeave =
                             employeeLeaves.some(
                                 (leave) =>
@@ -419,38 +336,23 @@ function AttendanceMonthly() {
                         if (isOnLeave) {
                             return;
                         }
-
-                        // Jadwal working yang sudah lewat
-                        // tetapi tidak punya attendance
-                        // dihitung tidak hadir.
+                
                         unrecordedAbsent++;
                     });
 
                     const absent =
                         explicitAbsent +
                         unrecordedAbsent;
-
-                    // =========================================
-                    // JUMLAH PENGAJUAN CUTI
-                    // =========================================
-
+   
                     const leaveCount =
-                        employeeLeaves.length;
-
-                    // =========================================
-                    // TOTAL HARI CUTI
-                    // HANYA BAGIAN YANG MASUK BULAN TERPILIH
-                    // =========================================
+                        employeeLeaves.length;                
 
                     const leaveDays =
                         employeeLeaves.reduce(
                             (
                                 total,
                                 leave
-                            ) => {
-                                // Ambil tanggal yang
-                                // overlap dengan bulan ini.
-
+                            ) => {                                
                                 const effectiveStart =
                                     leave.start_date >
                                     startDate
@@ -503,11 +405,7 @@ function AttendanceMonthly() {
         } finally {
             setLoading(false);
         }
-    };
-
-    // =========================================================
-    // NAMA BULAN
-    // =========================================================
+    };   
 
     const monthNames = [
         "Januari",
@@ -522,11 +420,7 @@ function AttendanceMonthly() {
         "Oktober",
         "November",
         "Desember",
-    ];
-
-    // =========================================================
-    // SEARCH
-    // =========================================================
+    ];    
 
     const filteredEmployees =
         employees.filter((employee) =>
@@ -535,9 +429,9 @@ function AttendanceMonthly() {
                 .includes(search.toLowerCase())
         );
 
-    // =========================================================
-    // TOTAL SUMMARY
-    // =========================================================
+    const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage) || 1;
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + rowsPerPage);  
 
     const totalPresent =
         employees.reduce(
@@ -565,18 +459,10 @@ function AttendanceMonthly() {
             (total, employee) =>
                 total + employee.leaveDays,
             0
-        );
-
-    // =========================================================
-    // UI
-    // =========================================================
+        );    
 
     return (
-        <div>
-            {/* =================================================
-                HEADER
-            ================================================= */}
-
+        <div className="space-y-6">        
             <div className="mb-8">
                 <h1 className="text-2xl font-semibold text-slate-900">
                     Rekap Bulanan
@@ -586,11 +472,7 @@ function AttendanceMonthly() {
                     Lihat rekap bulanan semua karyawan
                     berdasarkan jadwal kerja
                 </p>
-            </div>
-
-            {/* =================================================
-                FILTER PERIODE + SEARCH
-            ================================================= */}
+            </div>          
 
             <div className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div>
@@ -603,9 +485,7 @@ function AttendanceMonthly() {
                     </p>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    {/* SEARCH */}
-
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">                    
                     <input
                         type="text"
                         placeholder="Cari karyawan..."
@@ -618,11 +498,7 @@ function AttendanceMonthly() {
                         className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 md:w-64"
                     />
 
-                    <div className="flex gap-3">
-                        {/* =================================================
-                            MONTH DROPDOWN
-                        ================================================= */}
-
+                    <div className="flex gap-3">                       
                         <div className="relative">
                             <button
                                 type="button"
@@ -702,11 +578,7 @@ function AttendanceMonthly() {
                                     </div>
                                 </>
                             )}
-                        </div>
-
-                        {/* =================================================
-                            YEAR DROPDOWN
-                        ================================================= */}
+                        </div>                        
 
                         <div className="relative">
                             <button
@@ -785,15 +657,9 @@ function AttendanceMonthly() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div>            
 
-            {/* =================================================
-                SUMMARY CARDS
-            ================================================= */}
-
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-                {/* HADIR */}
-
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">                
                 <div className="rounded-xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-slate-500">
                         Total Hadir
@@ -804,9 +670,7 @@ function AttendanceMonthly() {
                             ? "..."
                             : totalPresent}
                     </p>
-                </div>
-
-                {/* TERLAMBAT */}
+                </div>                
 
                 <div className="rounded-xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-slate-500">
@@ -818,9 +682,7 @@ function AttendanceMonthly() {
                             ? "..."
                             : totalLate}
                     </p>
-                </div>
-
-                {/* CUTI */}
+                </div>                
 
                 <div className="rounded-xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-slate-500">
@@ -836,9 +698,7 @@ function AttendanceMonthly() {
                     <p className="mt-1 text-xs text-slate-400">
                         Jumlah pengajuan approved
                     </p>
-                </div>
-
-                {/* HARI CUTI */}
+                </div>                
 
                 <div className="rounded-xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-slate-500">
@@ -855,11 +715,7 @@ function AttendanceMonthly() {
                         Hari
                     </p>
                 </div>
-            </div>
-
-            {/* =================================================
-                TABLE
-            ================================================= */}
+            </div>           
 
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
                 <div className="overflow-x-auto">
@@ -901,47 +757,42 @@ function AttendanceMonthly() {
                                 <tr>
                                     <td
                                         colSpan={7}
-                                        className="px-6 py-10 text-center text-slate-500"
+                                        className="px-6 py-12 text-center text-slate-400"
                                     >
                                         Memuat rekap bulanan...
                                     </td>
                                 </tr>
-                            ) : filteredEmployees.length ===
-                              0 ? (
+                            ) : paginatedEmployees.length ===
+                                0 ? (
                                 <tr>
                                     <td
                                         colSpan={7}
-                                        className="px-6 py-10 text-center text-slate-500"
+                                        className="px-6 py-12 text-center text-slate-400"
                                     >
                                         Karyawan tidak ditemukan.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredEmployees.map(
+                                paginatedEmployees.map(
                                     (employee) => (
                                         <tr
                                             key={
                                                 employee.id
                                             }
-                                            className="hover:bg-slate-50"
-                                        >
-                                            {/* NAMA */}
+                                            className="hover:bg-slate-50 transition-colors"
+                                        >                                            
 
                                             <td className="px-6 py-4 font-medium text-slate-900">
                                                 {
                                                     employee.name
                                                 }
-                                            </td>
-
-                                            {/* DEPARTMENT */}
+                                            </td>                                                                                        
 
                                             <td className="px-6 py-4 text-slate-500">
                                                 {
                                                     employee.department
                                                 }
-                                            </td>
-
-                                            {/* HADIR */}
+                                            </td>                                            
 
                                             <td className="px-6 py-4 text-center">
                                                 <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
@@ -949,9 +800,7 @@ function AttendanceMonthly() {
                                                         employee.present
                                                     }
                                                 </span>
-                                            </td>
-
-                                            {/* TERLAMBAT */}
+                                            </td>                                            
 
                                             <td className="px-6 py-4 text-center">
                                                 <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-700">
@@ -959,9 +808,7 @@ function AttendanceMonthly() {
                                                         employee.late
                                                     }
                                                 </span>
-                                            </td>
-
-                                            {/* ABSENT */}
+                                            </td>                                            
 
                                             <td className="px-6 py-4 text-center">
                                                 <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
@@ -969,9 +816,7 @@ function AttendanceMonthly() {
                                                         employee.absent
                                                     }
                                                 </span>
-                                            </td>
-
-                                            {/* CUTI */}
+                                            </td>                                            
 
                                             <td className="px-6 py-4 text-center">
                                                 <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
@@ -979,9 +824,7 @@ function AttendanceMonthly() {
                                                         employee.leaveCount
                                                     }
                                                 </span>
-                                            </td>
-
-                                            {/* HARI CUTI */}
+                                            </td>                                            
 
                                             <td className="px-6 py-4 text-center font-medium text-purple-600">
                                                 {
@@ -997,6 +840,34 @@ function AttendanceMonthly() {
                     </table>
                 </div>
             </div>
+            
+            {!loading && filteredEmployees.length > 0 && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white px-5 py-3 shadow-sm">
+                    <p className="text-xs text-slate-500">
+                        Menampilkan <span className="font-medium text-slate-700">{startIndex + 1}</span> - <span className="font-medium text-slate-700">{Math.min(startIndex + rowsPerPage, filteredEmployees.length)}</span> dari <span className="font-medium text-slate-700">{filteredEmployees.length}</span> karyawan
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            Sebelumnya
+                        </button>
+                        <span className="text-xs font-medium text-slate-600">
+                            Hal. {currentPage} dari {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            Berikutnya
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

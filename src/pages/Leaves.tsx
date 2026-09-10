@@ -5,6 +5,9 @@ import {
   X,
   ChevronDown,
   FileText,
+  Settings,
+  Calendar,
+  Award
 } from "lucide-react";
 
 type Leave = {
@@ -16,11 +19,21 @@ type Leave = {
   status: "pending" | "approved" | "rejected";
   rawStartDate: string;
   documentUrl: string | null;
+  createdAt: string; // Tambahan untuk referensi sorting waktu pengajuan
 };
 
 function Leaves() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [leaveSetting, setLeaveSetting] = useState<{
+    year: number;
+    total_days: number;
+  } | null>(null);
+
+  const [leaveDays, setLeaveDays] = useState("");
+  const [savingLeaveSetting, setSavingLeaveSetting] = useState(false);
+  const [showSettingModal, setShowSettingModal] = useState(false);
   
   const [selectedDate, setSelectedDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua");
@@ -28,9 +41,77 @@ function Leaves() {
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
   useEffect(() => {
-    fetchLeaves();
+    fetchLeaves();    
+    fetchLeaveSetting();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate, statusFilter]);
+
+  const fetchLeaveSetting = async () => {
+    const currentYear = new Date().getFullYear();
+
+    const { data, error } = await supabase
+      .from("leave_settings")
+      .select("year, total_days")
+      .eq("year", currentYear)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Gagal mengambil pengaturan cuti:", error);
+      return;
+    }
+
+    setLeaveSetting(data);
+    setLeaveDays(data ? String(data.total_days) : "");
+  };
+
+  const handleSaveLeaveSetting = async () => {
+    const currentYear = new Date().getFullYear();
+    const totalDays = Number(leaveDays);
+
+    if (!Number.isInteger(totalDays) || totalDays < 0) {
+      alert("Jatah cuti harus berupa angka 0 atau lebih.");
+      return;
+    }
+
+    setSavingLeaveSetting(true);
+
+    const { data, error } = await supabase
+      .from("leave_settings")
+      .upsert(
+        {
+          year: currentYear,
+          total_days: totalDays,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "year",
+        }
+      )
+      .select("year, total_days")
+      .single();
+
+    setSavingLeaveSetting(false);
+
+    if (error) {
+      console.error("Gagal menyimpan pengaturan cuti:", error);
+      alert(`Gagal menyimpan pengaturan cuti: ${error.message}`);
+      return;
+    }
+
+    setLeaveSetting(data);
+    setLeaveDays(String(data.total_days));
+    setShowSettingModal(false);
+
+    alert(`Jatah cuti tahun ${currentYear} berhasil disimpan.`);
+  };
 
   const fetchLeaves = async () => {
     setLoading(true);
@@ -71,7 +152,7 @@ function Leaves() {
 
         if (filePath.startsWith("http")) {
           fullDocumentUrl = filePath;
-        } else {                  
+        } else {                
           const { data: signedUrlData } = await supabase.storage
             .from("leave_documents") 
             .createSignedUrl(filePath, 3600); 
@@ -97,10 +178,21 @@ function Leaves() {
         status: item.status,
         rawStartDate: item.start_date,
         documentUrl: fullDocumentUrl,
+        createdAt: item.created_at || "",
       };
     });
 
     const formattedLeaves = await Promise.all(formattedLeavesPromises);
+
+    // =========================================================
+    // SORTING: Prioritaskan status 'pending' di urutan paling atas
+    // =========================================================
+    formattedLeaves.sort((a, b) => {
+      if (a.status === "pending" && b.status !== "pending") return -1;
+      if (a.status !== "pending" && b.status === "pending") return 1;
+      // Jika statusnya sama, urutkan berdasarkan waktu pengajuan terbaru (created_at)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
     setLeaves(formattedLeaves);
     setLoading(false);
@@ -169,6 +261,11 @@ function Leaves() {
     return matchDate && matchStatus;
   });
 
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredLeaves.length / rowsPerPage) || 1;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedLeaves = filteredLeaves.slice(startIndex, startIndex + rowsPerPage);
+
   const getStatusLabel = (val: string) => {
     if (val === "pending") return "Pending";
     if (val === "approved") return "Approved";
@@ -177,51 +274,71 @@ function Leaves() {
   };
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Pengajuan Cuti & Izin
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Kelola dan review pengajuan cuti serta lampiran dokumen karyawan
-        </p>
+    <div className="scrollbar-none space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Persetujuan Cuti</h1>
+          <p className="mt-1 text-sm text-slate-500">Kelola izin dan pengajuan cuti karyawan secara terpusat</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <Award size={18} />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Jatah Cuti ({leaveSetting?.year || new Date().getFullYear()})</p>
+              <p className="text-sm font-bold text-slate-800">{leaveSetting ? `${leaveSetting.total_days} Hari` : "Belum diatur"}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowSettingModal(true)}
+            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <Settings size={18} className="text-slate-500" /> Atur Jatah Cuti
+          </button>
+        </div>
       </div>
       
-      <div className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm md:flex-row md:items-center">
+      <div className="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-blue-500"
-          />
+          <div className="relative flex items-center">
+            <Calendar size={16} className="absolute left-3 text-slate-400 pointer-events-none" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-xl border border-slate-300 py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none focus:border-blue-500"
+            />
+          </div>
           {selectedDate && (
             <button
               onClick={() => setSelectedDate("")}
-              className="text-sm text-blue-500 hover:text-blue-700 hover:underline"
+              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
             >
               Reset Tanggal
             </button>
           )}
         </div>
 
-        <div className="relative md:ml-auto">
+        <div className="relative md:ml-auto w-full md:w-auto">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none transition-all hover:bg-slate-50 focus:border-blue-500 md:w-48"
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition-all hover:bg-slate-50 focus:border-blue-500 md:w-48"
           >
             <span>{getStatusLabel(statusFilter)}</span>
             <ChevronDown size={18} className={`text-slate-400 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {isDropdownOpen && (
-            <>           
+            <>          
               <div 
                 className="fixed inset-0 z-40"
                 onClick={() => setIsDropdownOpen(false)}
               ></div>
               
-              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
                 {["Semua", "pending", "approved", "rejected"].map((status) => (
                   <button
                     key={status}
@@ -229,7 +346,7 @@ function Leaves() {
                       setStatusFilter(status);
                       setIsDropdownOpen(false);
                     }}
-                    className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                       statusFilter === status
                         ? "bg-blue-50 text-blue-700 font-medium"
                         : "text-slate-600 hover:bg-slate-100"
@@ -245,12 +362,12 @@ function Leaves() {
       </div>
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">        
-        <div className="max-h-[60vh] overflow-y-auto scrollbar-thin">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
+            <thead className="bg-slate-50 text-slate-600 border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 font-medium">Nama</th>              
-                <th className="px-6 py-4 font-medium">Tanggal</th>
+                <th className="px-6 py-4 font-medium">Nama Karyawan</th>             
+                <th className="px-6 py-4 font-medium">Tanggal Cuti</th>
                 <th className="px-6 py-4 font-medium">Alasan</th>
                 <th className="px-6 py-4 font-medium">Lampiran</th>
                 <th className="px-6 py-4 font-medium">Status</th>
@@ -262,36 +379,36 @@ function Leaves() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-slate-500"
+                    colSpan={6}
+                    className="px-6 py-12 text-center text-slate-400"
                   >
-                    Memuat data...
+                    Memuat data pengajuan cuti...
                   </td>
                 </tr>
-              ) : filteredLeaves.length === 0 ? (
+              ) : paginatedLeaves.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-slate-500"
+                    colSpan={6}
+                    className="px-6 py-12 text-center text-slate-400"
                   >
-                    Data pengajuan cuti tidak ditemukan.
+                    Tidak ada data pengajuan cuti yang cocok dengan filter.
                   </td>
                 </tr>
               ) : (
-                filteredLeaves.map((leave) => (
+                paginatedLeaves.map((leave) => (
                   <tr
                     key={leave.id}
-                    className="hover:bg-slate-50"
+                    className="hover:bg-slate-50 transition-colors"
                   >
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {leave.name}
-                    </td>                    
+                    </td>               
 
                     <td className="px-6 py-4 text-slate-600">
                       {leave.startDate} - {leave.endDate}
                     </td>
 
-                    <td className="px-6 py-4 text-slate-500">
+                    <td className="px-6 py-4 text-slate-500 max-w-xs truncate">
                       {leave.reason}
                     </td>
                     
@@ -299,7 +416,7 @@ function Leaves() {
                       {leave.documentUrl ? (
                         <button
                           onClick={() => setSelectedImage(leave.documentUrl)}
-                          className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 transition"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 transition"
                         >
                           <FileText size={14} />
                           Lihat Lampiran
@@ -311,7 +428,7 @@ function Leaves() {
 
                     <td className="px-6 py-4">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                           leave.status === "pending"
                             ? "bg-yellow-100 text-yellow-700"
                             : leave.status === "approved"
@@ -329,10 +446,10 @@ function Leaves() {
 
                     <td className="px-6 py-4 text-right">
                       {leave.status === "pending" ? (
-                        <>
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleStatus(leave.id, "approved")}
-                            className="mr-3 rounded-md border border-slate-300 bg-slate-200 p-1 text-green-600 hover:bg-slate-300 hover:text-green-800"
+                            className="rounded-lg border border-green-200 bg-green-50 p-2 text-green-600 hover:bg-green-100 transition"
                             title="Setujui Cuti"
                           >
                             <Check size={16} />
@@ -340,14 +457,14 @@ function Leaves() {
 
                           <button
                             onClick={() => handleStatus(leave.id, "rejected")}
-                            className="rounded-md border border-slate-300 bg-slate-200 p-1 text-red-600 hover:bg-slate-300 hover:text-red-800"
+                            className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100 transition"
                             title="Tolak Cuti"
                           >
                             <X size={16} />
                           </button>
-                        </>
+                        </div>
                       ) : (
-                        <span className="text-slate-400">Selesai</span>
+                        <span className="text-xs text-slate-400 font-medium">Selesai diproses</span>
                       )}
                     </td>
                   </tr>
@@ -357,19 +474,111 @@ function Leaves() {
           </table>
         </div>
       </div>
+
+      {!loading && filteredLeaves.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white px-5 py-3 shadow-sm">
+          <p className="text-xs text-slate-500">
+            Menampilkan <span className="font-medium text-slate-700">{startIndex + 1}</span> - <span className="font-medium text-slate-700">{Math.min(startIndex + rowsPerPage, filteredLeaves.length)}</span> dari <span className="font-medium text-slate-700">{filteredLeaves.length}</span> pengajuan cuti
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Sebelumnya
+            </button>
+            <span className="text-xs font-medium text-slate-600">
+              Hal. {currentPage} dari {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
       
+      {showSettingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Pengaturan Jatah Cuti</h2>
+                <p className="mt-0.5 text-xs text-slate-500">Tentukan kuota hari cuti tahunan untuk seluruh karyawan.</p>
+              </div>
+              <button 
+                onClick={() => setShowSettingModal(false)} 
+                disabled={savingLeaveSetting}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Tahun Berlaku</label>
+                <input
+                  type="text"
+                  value={leaveSetting?.year || new Date().getFullYear()}
+                  readOnly
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-500 outline-none cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Jumlah Jatah Hari</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    value={leaveDays}
+                    onChange={(e) => setLeaveDays(e.target.value)}
+                    placeholder="Contoh: 12"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 pr-14"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">Hari</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
+              <button
+                onClick={() => setShowSettingModal(false)}
+                disabled={savingLeaveSetting}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveLeaveSetting}
+                disabled={savingLeaveSetting}
+                className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
+              >
+                {savingLeaveSetting ? "Menyimpan..." : "Simpan Perubahan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in"
           onClick={() => setSelectedImage(null)}
         >
           <div
-            className="relative max-h-[90vh] max-w-[90vw] rounded-xl bg-white p-3 shadow-xl flex flex-col items-center"
+            className="relative max-h-[90vh] max-w-[90vw] rounded-2xl bg-white p-4 shadow-2xl flex flex-col items-center"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-lg text-white hover:bg-black/80"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition"
             >
               ×
             </button>
@@ -377,14 +586,14 @@ function Leaves() {
             <img
               src={selectedImage}
               alt="Lampiran Surat Cuti / Sakit"
-              className="max-h-[75vh] max-w-[80vw] rounded-lg object-contain"
+              className="max-h-[75vh] max-w-[80vw] rounded-xl object-contain bg-slate-50 border border-slate-100 p-2"
             />
             
             <a
               href={selectedImage}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition"
             >
               Buka di Tab Baru / Download
             </a>

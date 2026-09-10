@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
-import {
+import { 
   ChevronDown,
   Trash,
   SquarePen,
@@ -31,6 +31,10 @@ function Employees() {
   const [isGenderDropdownOpen, setIsGenderDropdownOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -56,6 +60,11 @@ function Employees() {
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  // Reset ke halaman 1 setiap kali kotak pencarian berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -127,6 +136,11 @@ function Employees() {
     employee.email.toLowerCase().includes(search.toLowerCase()) ||
     employee.department.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage) || 1;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + rowsPerPage);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -271,7 +285,6 @@ function Employees() {
     if (!confirmed) return;
 
     try {
-      // Mengirim ID melalui query parameter di URL sesuai ekspektasi server function
       const { data, error } = await supabase.functions.invoke(
         `delete-user?id=${encodeURIComponent(id)}`,
         {
@@ -309,8 +322,8 @@ function Employees() {
   };
 
   return (
-    <div className="scrollbar-none">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="scrollbar-none space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
             Manajemen Karyawan
@@ -321,7 +334,7 @@ function Employees() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="p-4">
+          <div>
             <input
               type="text"
               placeholder="Cari karyawan..."
@@ -336,7 +349,7 @@ function Employees() {
               resetForm();
               setShowForm(true);
             }}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             + Tambah Karyawan
           </button>
@@ -506,7 +519,7 @@ function Employees() {
                   />
                 </div>
 
-                {editingEmployee === null && (                              
+                {editingEmployee === null && (                             
                   <div className="relative">
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Role Sistem <span className="text-red-500">*</span>
@@ -585,9 +598,9 @@ function Employees() {
       )}
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">        
-        <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
+            <thead className="bg-slate-50 text-slate-600 border-b border-slate-100">
               <tr>
                 <th className="px-6 py-4 font-medium">Nama</th>
                 <th className="px-6 py-4 font-medium">Department</th>
@@ -599,19 +612,19 @@ function Employees() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                    Memuat data...
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    Memuat data karyawan...
                   </td>
                 </tr>
-              ) : filteredEmployees.length === 0 ? (
+              ) : paginatedEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                    Belum ada data karyawan.
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    Tidak ada data karyawan yang cocok dengan pencarian.
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className="hover:bg-slate-50">
+                paginatedEmployees.map((employee) => (
+                  <tr key={employee.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {employee.name}
                     </td>
@@ -645,7 +658,7 @@ function Employees() {
 
                       <button
                         onClick={() => handleViewEmployee(employee.id)}
-                        className="rounded-md bg-slate-300 border border-slate-200 p-1 text-black hover:bg-slate-400"
+                        className="rounded-md bg-slate-100 border border-slate-200 p-2 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition"
                         title="Detail"
                       >
                         <Ellipsis size={18}/>
@@ -659,6 +672,35 @@ function Employees() {
         </div>
       </div>
 
+      {/* PAGINATION CONTROLS */}
+      {!loading && filteredEmployees.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white px-5 py-3 shadow-sm">
+          <p className="text-xs text-slate-500">
+            Menampilkan <span className="font-medium text-slate-700">{startIndex + 1}</span> - <span className="font-medium text-slate-700">{Math.min(startIndex + rowsPerPage, filteredEmployees.length)}</span> dari <span className="font-medium text-slate-700">{filteredEmployees.length}</span> karyawan
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Sebelumnya
+            </button>
+            <span className="text-xs font-medium text-slate-600">
+              Hal. {currentPage} dari {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedEmployee && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity"
@@ -667,7 +709,7 @@ function Employees() {
           <div
             className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl md:flex-row"
             onClick={(e) => e.stopPropagation()}
-          >          
+          >           
             <button
               onClick={() => setSelectedEmployee(null)}
               className="absolute right-4 top-4 z-10 rounded-full bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
@@ -699,7 +741,7 @@ function Employees() {
               <h3 className="text-2xl font-bold text-slate-900">
                 {selectedEmployee.full_name || selectedEmployee.name || "-"}
               </h3>
-                          
+                      
               <p className="mt-3 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-700">
                 {selectedEmployee.department || "No Department"}
               </p>
@@ -719,7 +761,7 @@ function Employees() {
                 </p>
               </div>
 
-              <div className="flex-1 space-y-4">              
+              <div className="flex-1 space-y-4">             
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email</p>
@@ -767,13 +809,13 @@ function Employees() {
               
               <button
                 onClick={() => setSelectedEmployee(null)}
-                className="mt-6 w-full rounded-xl bg-blue-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                className="mt-6 w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
               >
                 Tutup Profil
               </button>
             </div>
           </div>
-        </div>    
+        </div>   
       )}
     </div>
   );

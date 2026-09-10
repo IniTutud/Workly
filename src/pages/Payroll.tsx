@@ -176,6 +176,10 @@ function Payroll() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
   const [showForm, setShowForm] = useState(false);
   const [selectedPayroll, setSelectedPayroll] =
     useState<Payroll | null>(null);
@@ -324,6 +328,11 @@ function Payroll() {
     fetchPayrolls();
   }, [selectedMonth, selectedYear, profiles]);
 
+  // Reset ke halaman 1 setiap kali filter bulan, tahun, status, atau pencarian berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedMonth, selectedYear, search, statusFilter]);
+
   const formatRupiah = (value: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -363,10 +372,14 @@ function Payroll() {
     })
     .sort((a, b) => {
       if (a.status === b.status) return 0;
-      // Jika 'a' adalah pending dan 'b' adalah paid, 'a' didahulukan (-1)
       if (a.status === "pending" && b.status === "paid") return -1;
       return 1;
     });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredPayrolls.length / rowsPerPage) || 1;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedPayrolls = filteredPayrolls.slice(startIndex, startIndex + rowsPerPage);
 
   const handleGenerateBulkPayroll = async () => {
     const confirmed = window.confirm(
@@ -639,9 +652,9 @@ function Payroll() {
       </div>
       
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        <div className="max-h-[65vh] overflow-y-auto scrollbar-thin">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-212.5 text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
+            <thead className="bg-slate-50 text-slate-600 border-b border-slate-100">
               <tr>
                 <th className="px-6 py-4 font-semibold">
                   Karyawan
@@ -670,22 +683,22 @@ function Payroll() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-6 py-10 text-center text-slate-500"
+                    className="px-6 py-12 text-center text-slate-400"
                   >
                     Memuat data penggajian...
                   </td>
                 </tr>
-              ) : filteredPayrolls.length === 0 ? (
+              ) : paginatedPayrolls.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-6 py-10 text-center text-slate-500"
+                    className="px-6 py-12 text-center text-slate-400"
                   >
                     Belum ada data penggajian.
                   </td>
                 </tr>
               ) : (
-                filteredPayrolls.map((payroll) => (
+                paginatedPayrolls.map((payroll) => (
                   <tr
                     key={payroll.id}
                     className="transition hover:bg-slate-50"
@@ -768,6 +781,35 @@ function Payroll() {
           </table>
         </div>
       </div>
+
+      {/* PAGINATION CONTROLS */}
+      {!loading && filteredPayrolls.length > 0 && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white px-5 py-3 shadow-sm">
+          <p className="text-xs text-slate-500">
+            Menampilkan <span className="font-medium text-slate-700">{startIndex + 1}</span> - <span className="font-medium text-slate-700">{Math.min(startIndex + rowsPerPage, filteredPayrolls.length)}</span> dari <span className="font-medium text-slate-700">{filteredPayrolls.length}</span> data penggajian
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Sebelumnya
+            </button>
+            <span className="text-xs font-medium text-slate-600">
+              Hal. {currentPage} dari {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div
