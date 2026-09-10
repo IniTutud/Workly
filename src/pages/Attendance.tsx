@@ -16,6 +16,7 @@ type Attendance = {
 
   latitude?: number | null;
   longitude?: number | null;
+  ip_address?: string | null;
 
   shiftStatus?: "working" | "off" | "leave";
   shiftName?: string | null;
@@ -112,7 +113,7 @@ function Attendance() {
         await supabase
           .from("attendances")
           .select(
-            "id, user_id, clock_in, clock_out, photo_url, status, latitude, longitude"
+            "id, user_id, clock_in, clock_out, photo_url, status, latitude, longitude, ip_address"
           );
 
       if (attendanceError) {
@@ -231,7 +232,10 @@ function Attendance() {
           employeeAttendance?.longitude !== null &&
           employeeAttendance?.longitude !== undefined
             ? Number(employeeAttendance.longitude)
-            : null;        
+            : null;
+            
+        const ipAddress =
+          employeeAttendance?.ip_address || null;
 
         const rawDate =
           employeeAttendance?.clock_in || selectedDate;        
@@ -263,6 +267,8 @@ function Attendance() {
           latitude,
 
           longitude,
+
+          ip_address: ipAddress,
 
           shiftStatus: scheduleStatus,
 
@@ -867,6 +873,10 @@ function Attendance() {
                 </th>
 
                 <th className="px-5 py-4 font-medium">
+                  IP Address
+                </th>
+
+                <th className="px-5 py-4 font-medium">
                   Status Kehadiran
                 </th>
               </tr>
@@ -877,7 +887,7 @@ function Attendance() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-5 py-12 text-center text-slate-400"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
@@ -898,7 +908,7 @@ function Attendance() {
 
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-5 py-12 text-center text-slate-400"
                   >
                     Tidak ada data rekap
@@ -1068,7 +1078,19 @@ function Attendance() {
                             -
                           </span>
                         )}
-                      </td>                    
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {item.ip_address ? (
+                          <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                            {item.ip_address}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">
+                            -
+                          </span>
+                        )}
+                      </td>
 
                       <td className="px-5 py-4">
                         <span
