@@ -728,6 +728,7 @@ const PengajuanCuti: React.FC = () => {
                   id="end_date"
                   type="date"
                   required
+                  min={startDate}
                   value={endDate}
                   onChange={(e) =>
                     setEndDate(

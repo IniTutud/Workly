@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../utils/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ interface Attendance {
   status: string;
   latitude?: number;
   longitude?: number;
+  ip_address?: string;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -208,7 +209,8 @@ const Presensi: React.FC = () => {
         clockOut: formatTime(att.clock_out),
         status: att.status || 'present',
         latitude: att.latitude,
-        longitude: att.longitude
+        longitude: att.longitude,
+        ip_address: att.ip_address
       }));
       setAttendanceHistory(mappedAttendances);
     } catch (error) {
@@ -307,6 +309,16 @@ const Presensi: React.FC = () => {
       // 2. Upload foto jika lokasi berhasil didapat
       const photoUrl = await uploadPhoto(selectedFile);
       if (!photoUrl) throw new Error("Gagal mendapatkan URL foto");
+
+      // 2.5 Ambil IP Address
+      let ipAddress = null;
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const ipData = await res.json();
+        ipAddress = ipData.ip;
+      } catch (ipError) {
+        console.error("Gagal mendapatkan IP Address:", ipError);
+      }
       
       const isLate = now > shiftTime;
       const attendanceStatus = isLate ? 'late' : 'present';
@@ -320,7 +332,8 @@ const Presensi: React.FC = () => {
           photo_url: photoUrl,
           status: attendanceStatus,
           latitude: location.lat,    // Data GPS ditambahkan di sini
-          longitude: location.lng    // Data GPS ditambahkan di sini
+          longitude: location.lng,    // Data GPS ditambahkan di sini
+          ip_address: ipAddress      // Data IP Address ditambahkan di sini
         })
         .select()
         .single();
@@ -556,6 +569,7 @@ const Presensi: React.FC = () => {
                     <TableHead className="font-semibold text-slate-600">Clock In</TableHead>
                     <TableHead className="font-semibold text-slate-600">Clock Out</TableHead>
                     <TableHead className="font-semibold text-slate-600">Lokasi</TableHead>
+                    <TableHead className="font-semibold text-slate-600">IP Address</TableHead>
                     <TableHead className="font-semibold text-slate-600">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -588,6 +602,13 @@ const Presensi: React.FC = () => {
                             >
                               Lihat Peta
                             </a>
+                          ) : (
+                            <span className="text-slate-400 text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {row.ip_address ? (
+                            <span className="text-slate-700 text-sm">{row.ip_address}</span>
                           ) : (
                             <span className="text-slate-400 text-sm">-</span>
                           )}
