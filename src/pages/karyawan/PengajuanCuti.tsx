@@ -34,7 +34,6 @@ import {
 // PENGATURAN JATAH CUTI
 // ==========================================
 
-const TOTAL_LEAVE_LIMIT = 12;
 const WARNING_LIMIT = 3;
 
 // ==========================================
@@ -126,6 +125,8 @@ const PengajuanCuti: React.FC = () => {
   const [leaveData, setLeaveData] =
     useState<LeaveData[]>([]);
 
+  const [totalLeaveLimit, setTotalLeaveLimit] = useState(0);
+
   // ==========================================
   // AMBIL DATA SAAT HALAMAN DIBUKA
   // ==========================================
@@ -147,6 +148,20 @@ const PengajuanCuti: React.FC = () => {
       } = await supabase.auth.getUser();
 
       if (!user) return;
+
+      // Ambil jatah cuti dari leave_settings
+      const currentYear = new Date().getFullYear();
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('leave_settings')
+        .select('total_days')
+        .eq('year', currentYear)
+        .single();
+      
+      if (!settingsError && settingsData) {
+        setTotalLeaveLimit(settingsData.total_days);
+      } else {
+        setTotalLeaveLimit(12); // Fallback
+      }
 
       const { data, error } = await supabase
         .from('leaves')
@@ -245,7 +260,7 @@ const PengajuanCuti: React.FC = () => {
     );
 
   const remainingLeaveDays = Math.max(
-    TOTAL_LEAVE_LIMIT - usedLeaveDays,
+    totalLeaveLimit - usedLeaveDays,
     0
   );
 
@@ -543,7 +558,7 @@ const PengajuanCuti: React.FC = () => {
                 </p>
 
                 <p className="text-3xl font-bold text-indigo-600 mt-2">
-                  {TOTAL_LEAVE_LIMIT}
+                  {totalLeaveLimit}
                   <span className="text-sm font-medium text-slate-400 ml-1">
                     hari
                   </span>
