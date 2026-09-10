@@ -24,7 +24,7 @@ type ShiftData = {
   name: string;
   start_time: string;
   end_time: string;
-  color?: string | null; // Warna shift
+  color?: string | null; 
   created_at?: string;
   updated_at?: string;
 };

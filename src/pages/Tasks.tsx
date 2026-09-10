@@ -84,6 +84,10 @@ export default function Tasks() {
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
@@ -105,6 +109,11 @@ export default function Tasks() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Reset ke halaman 1 setiap kali filter atau pencarian berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
 
   const fetchData = async () => {
     try {
@@ -212,6 +221,11 @@ export default function Tasks() {
       return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
     });
   }, [tasks, employeeMap, search, statusFilter]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTasks.length / rowsPerPage) || 1;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedTasks = filteredTasks.slice(startIndex, startIndex + rowsPerPage);
 
   const stats = useMemo(() => {
     return {
@@ -511,9 +525,9 @@ export default function Tasks() {
       </div>
       
       <div className="overflow-hidden rounded-xl bg-white shadow-sm border border-slate-200">
-        <div className="max-h-[65vh] overflow-y-auto scrollbar-thin">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-225 text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm border-b border-slate-200">
+            <thead className="bg-slate-50 text-slate-600 shadow-sm border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 font-semibold">
                   Tugas
@@ -546,22 +560,22 @@ export default function Tasks() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-10 text-center text-slate-500"
+                    className="px-6 py-12 text-center text-slate-400"
                   >
                     Memuat data...
                   </td>
                 </tr>
-              ) : filteredTasks.length === 0 ? (
+              ) : paginatedTasks.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-10 text-center text-slate-500"
+                    className="px-6 py-12 text-center text-slate-400"
                   >
                     Belum ada tugas.
                   </td>
                 </tr>
               ) : (
-                filteredTasks.map((task) => {
+                paginatedTasks.map((task) => {
                   const displayStatus = getTaskDisplayStatus(
                     task.status,
                     task.due_date
@@ -682,6 +696,35 @@ export default function Tasks() {
           </table>
         </div>
       </div>
+
+      {/* PAGINATION CONTROLS */}
+      {!loading && filteredTasks.length > 0 && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white px-5 py-3 shadow-sm border border-slate-200">
+          <p className="text-xs text-slate-500">
+            Menampilkan <span className="font-medium text-slate-700">{startIndex + 1}</span> - <span className="font-medium text-slate-700">{Math.min(startIndex + rowsPerPage, filteredTasks.length)}</span> dari <span className="font-medium text-slate-700">{filteredTasks.length}</span> tugas
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Sebelumnya
+            </button>
+            <span className="text-xs font-medium text-slate-600">
+              Hal. {currentPage} dari {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
       
       {showCreateModal && (
         <div
